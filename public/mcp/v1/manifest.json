@@ -1,0 +1,24 @@
+{
+  "name": "clawdyclaw-bridge",
+  "version": "1.0.0",
+  "protocol": "2024-11-05",
+  "servers": {
+    "mcp": {
+      "url": "https://clawdyclaw.com/mcp/v1",
+      "capabilities": {
+        "tools": {
+          "list_tasks": { "description": "List the HITL task queue" },
+          "classify_intent": { "description": "Classify an inbound payload" },
+          "send_email": { "description": "Send personalized outreach (HITL-intercepted)" },
+          "search_threads": { "description": "Search inbox threads" },
+          "draft_reply": { "description": "Draft a reply (HITL-intercepted)" },
+          "run_scraper": { "description": "Dispatch a marketplace scrape" }
+        },
+        "interception_gate": {
+          "enforcement": "high-impact actions halt and enqueue pending approval"
+        }
+      }
+    }
+  },
+  "semantic": "@id: clawdyclaw/bridge#mcp"
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "ClawdyClaw Bridge",
+  "name_for_model": "clawdyclaw",
+  "description_for_human": "Autonomous capital accumulation platform — arbitrage loops, deterministic valuation, and machine-native settlement.",
+  "description_for_model": "A service node exposing market harvesting, deterministic valuation, and agent-to-agent 402 negotiation tools over MCP.",
+  "api": {
+    "type": "openapi",
+    "url": "https://clawdyclaw.com/mcp/v1/manifest.json"
+  },
+  "auth": { "type": "none" },
+  "logo_url": "https://clawdyclaw.com/favicon.svg",
+  "contact_email": "ops@clawdyclaw.com",
+  "legal_info_url": "https://clawdyclaw.com/legal"
+}

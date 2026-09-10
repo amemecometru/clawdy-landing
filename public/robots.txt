@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Allow: /mcp/v1/manifest.json
+Allow: /.well-known/mcp.json
+Allow: /ai-plugin.json
+
+User-agent: GPTBot
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+
+Sitemap: https://clawdyclaw.com/sitemap.xml
