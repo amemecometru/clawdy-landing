@@ -163,3 +163,116 @@ export async function simulatePayload(payload: Record<string, unknown>): Promise
   });
   return decode(res);
 }
+
+// ── WidgetFeed (portal widgets + platform feeds) ───────────────────────────
+
+export interface PortalWidget {
+  platform: string;
+  name: string;
+  type: "feed" | "events";
+  icon: string;
+  color: string;
+  accent: string;
+  tagline: string;
+  config: Record<string, string>;
+  position: number;
+  created_at: number;
+}
+
+export interface FeedItem {
+  id: string;
+  title: string;
+  link: string;
+  author: string | null;
+  published: string | null;
+  summary: string | null;
+}
+
+export interface FeedEvent {
+  id: string;
+  platform: string;
+  event_type: string;
+  payload: unknown;
+  created_at: number;
+}
+
+export async function fetchWidgets(): Promise<{ user: { sub: string; email: string | null }; widgets: PortalWidget[] }> {
+  const res = await fetch(`/api/v1/portal/widgets`);
+  return decode(res);
+}
+
+export async function mountWidget(platform: string, config: Record<string, string>, position = 1000): Promise<{ ok: boolean; platform: string; connected: boolean }> {
+  const res = await fetch(`/api/v1/portal/widgets`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ platform, config, position }),
+  });
+  return decode(res);
+}
+
+export async function unmountWidget(platform: string): Promise<{ ok: boolean; unmounted: string }> {
+  const res = await fetch(`/api/v1/portal/widgets/${platform}`, { method: "DELETE" });
+  return decode(res);
+}
+
+export async function fetchFeed(platform: string, config: Record<string, string> = {}): Promise<{
+  platform: string;
+  type: "feed" | "events";
+  ok: boolean;
+  source: string | null;
+  items: FeedItem[];
+  error?: string;
+}> {
+  const res = await fetch(`/api/v1/feeds/${platform}?config=${encodeURIComponent(JSON.stringify(config))}`);
+  return decode(res);
+}
+
+export async function fetchFeedEvents(platform: string): Promise<{ platform: string; events: FeedEvent[] }> {
+  const res = await fetch(`/api/v1/feeds/${platform}/events`);
+  return decode(res);
+}
+
+export async function sendTestEvent(platform: string, event_type = "notification"): Promise<{ ok: boolean; platform: string; delivered: unknown }> {
+  const res = await fetch(`/api/v1/feeds/${platform}/events`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ event_type }),
+  });
+  return decode(res);
+}
+
+// ── Models registry ─────────────────────────────────────────────────────────
+
+export interface ModelDef {
+  provider: string;
+  name: string;
+  category: "cloud" | "openweights" | "legacy" | "imaging";
+  description: string;
+  mode: "api_key" | "core";
+  models: string[];
+  icon: string;
+  accent: string;
+  connected?: boolean;
+}
+
+export async function fetchModels(): Promise<{ user: { sub: string; email: string | null }; inference_backbone: { runner: string; providers_bound: number }; models: ModelDef[] }> {
+  const res = await fetch(`/api/v1/models`);
+  return decode(res);
+}
+
+export async function testModelProvider(provider: string): Promise<{ provider: string; ok: boolean; detail: string; latency_ms: number }> {
+  const res = await fetch(`/api/v1/models/${provider}/test`, { method: "POST" });
+  return decode(res);
+}
+
+export async function runModel(
+  provider: string,
+  body: { model?: string; prompt?: string; image_prompt?: string }
+): Promise<{ ok: boolean; provider: string; model: string; output: unknown; latency_ms: number }> {
+  const res = await fetch(`/api/v1/models/${provider}/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return decode(res);
+}

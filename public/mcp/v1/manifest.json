@@ -1,6 +1,6 @@
 {
   "name": "clawdyclaw-bridge",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "protocol": "2024-11-05",
   "servers": {
     "mcp": {
@@ -12,7 +12,11 @@
           "send_email": { "description": "Send personalized outreach (HITL-intercepted)" },
           "search_threads": { "description": "Search inbox threads" },
           "draft_reply": { "description": "Draft a reply (HITL-intercepted)" },
-          "run_scraper": { "description": "Dispatch a marketplace scrape" }
+          "run_scraper": { "description": "Dispatch a marketplace scrape" },
+          "model_infer": { "description": "Run inference on any connected model family" },
+          "hf_infer": { "description": "Open-weights inference via HuggingFace router" },
+          "cloudflare_ai": { "description": "Edge inference on Cloudflare Workers AI" },
+          "flux_image": { "description": "Generate an image via FLUX.1-schnell" }
         },
         "interception_gate": {
           "enforcement": "high-impact actions halt and enqueue pending approval"

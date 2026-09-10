@@ -123,6 +123,37 @@
   animation: grid-fade var(--grid-speed, 1s) linear infinite;
 }
 
+/* In-widget feed article reader — constrain remote inline HTML from RSS */
+.feed-article {
+  overflow-wrap: anywhere;
+}
+.feed-article img,
+.feed-article video,
+.feed-article iframe {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 0.5rem 0;
+}
+.feed-article a {
+  color: var(--color-ember);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.feed-article p,
+.feed-article li {
+  line-height: 1.6;
+  margin: 0.4rem 0;
+}
+.feed-article h1,
+.feed-article h2,
+.feed-article h3,
+.feed-article h4 {
+  font-weight: 600;
+  color: var(--color-porcelain);
+  margin: 0.6rem 0 0.3rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-marquee,
   .animate-grid {

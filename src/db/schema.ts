@@ -77,6 +77,25 @@ CREATE TABLE IF NOT EXISTS vault_tokens (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_vault_user_provider ON vault_tokens(user_id, provider);
+
+CREATE TABLE IF NOT EXISTS portal_widgets (
+  user_id    TEXT NOT NULL,
+  platform   TEXT NOT NULL,
+  config     TEXT,
+  position   INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  PRIMARY KEY (user_id, platform)
+);
+
+CREATE TABLE IF NOT EXISTS feed_events (
+  id         TEXT PRIMARY KEY,
+  platform   TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  payload    TEXT NOT NULL,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS idx_feed_events_platform ON feed_events(platform, created_at);
 `;
 
 export async function migrate(db: D1Database): Promise<void> {

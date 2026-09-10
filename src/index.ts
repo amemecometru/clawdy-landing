@@ -25,6 +25,8 @@ import mcp from "./api/mcp";
 import integrations from "./api/integrations";
 import telemetry from "./api/telemetry";
 import sandbox from "./api/sandbox";
+import feeds from "./api/feeds";
+import models from "./api/models";
 import { migrate } from "./db/schema";
 
 // ── Env bindings ──────────────────────────────────────────────────────────────
@@ -38,6 +40,7 @@ export interface ClawdyEnv {
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
   VAULT_CIPHER_KEY?: string;
+  CF_ACCOUNT_ID?: string;
 }
 
 // ── Root app ──────────────────────────────────────────────────────────────────
@@ -76,6 +79,14 @@ app.route("/api/v1/telemetry", telemetry);
 
 app.route("/api/v1/sandbox", sandbox);
 
+// ── WidgetFeed + platform feeds (live RSS + webhook events) ──────────────────
+
+app.route("/api/v1", feeds);
+
+// ── Models registry (Cloudflare backbone + openWeights + legacy) ─────────────
+
+app.route("/api/v1", models);
+
 // ── MCP Tool Server (JSON-RPC over HTTP) ──────────────────────────────────────
 // Mounted explicitly (not via route()) so both the bare and trailing-slash
 // forms dispatch to the MCP router regardless of asset-routing quirks.
@@ -107,6 +118,10 @@ app.get("/mcp/v1/manifest.json", (c) =>
             search_threads: { description: "Search inbox threads" },
             draft_reply: { description: "Draft a reply (HITL-intercepted)" },
             run_scraper: { description: "Dispatch a marketplace scrape" },
+            model_infer: { description: "Run inference on any connected model family" },
+            hf_infer: { description: "Open-weights inference via HuggingFace router" },
+            cloudflare_ai: { description: "Edge inference on Cloudflare Workers AI" },
+            flux_image: { description: "Generate an image via FLUX.1-schnell" },
           },
         },
       },
@@ -126,6 +141,54 @@ app.get("/api/health", (c) =>
 );
 
 // ── Everything else: static assets are handled by CF asset routing ────────────
+
+// CF Asset serving strips hidden (dot) paths, so the well-known MCP discovery
+// document is served explicitly from the worker.
+const WELL_KNOWN_MCP = {
+  name: "clawdyclaw",
+  version: "1.1.0",
+  type: "service-node",
+  endpoints: {
+    mcp: "https://clawdyclaw.com/mcp/v1/manifest.json",
+    rpc: "https://clawdyclaw.com/mcp/v1",
+    protocol: "https://clawdyclaw.com/.well-known/",
+  },
+  capabilities: {
+    tools: [
+      "list_tasks",
+      "classify_intent",
+      "send_email",
+      "search_threads",
+      "draft_reply",
+      "run_scraper",
+      "model_infer",
+      "hf_infer",
+      "cloudflare_ai",
+      "flux_image",
+    ],
+    models: {
+      registry: "https://clawdyclaw.com/api/v1/models",
+      providers: ["cloudflare", "huggingface", "anthropic", "grok", "gemini", "flux"],
+      backbone: "worker-edge",
+    },
+    feeds: {
+      widgets: "https://clawdyclaw.com/api/v1/portal/widgets",
+      streams: ["youtube", "medium", "substack", "hackernoon"],
+      webhook_events: ["x", "facebook"],
+    },
+    hitl: {
+      enforcement: "interception-gate",
+      intercepted: ["send_email", "draft_reply"],
+      approval_queue: "https://clawdyclaw.com/api/v1/tasks",
+    },
+    settlement: ["lightning", "evm-402", "agentic-wallet"],
+  },
+  "@context": "https://schema.org",
+};
+
+app.get("/.well-known/mcp.json", (c) =>
+  c.json(WELL_KNOWN_MCP, 200, { "content-type": "application/json; charset=utf-8" })
+);
 
 app.all("*", (c) => c.json({ error: "Not found" }, 404));
 

@@ -15,9 +15,11 @@
 import { Hono } from "hono";
 import { classify, generateTaskId } from "./proxy-bridge";
 import { createTask, listTasks } from "../db/tasks";
+import { execute } from "./executor";
 
 export interface McpEnv {
   DB: D1Database;
+  SESSIONS?: KVNamespace;
 }
 
 interface McpTool {
@@ -96,6 +98,50 @@ const TOOLS: McpTool[] = [
       required: ["target", "query"],
     },
   },
+  {
+    name: "model_infer",
+    description: "Run inference on any connected model family (provider-agnostic router).",
+    intercepted: false,
+    inputSchema: {
+      type: "object",
+      properties: {
+        provider: { type: "string", description: "cloudflare | huggingface | anthropic | grok | gemini | flux" },
+        model: { type: "string", description: "model id; defaults per provider" },
+        prompt: { type: "string" },
+      },
+      required: ["prompt"],
+    },
+  },
+  {
+    name: "hf_infer",
+    description: "Open-weights inference via HuggingFace router (llama, mistral, qwen…).",
+    intercepted: false,
+    inputSchema: {
+      type: "object",
+      properties: { model: { type: "string" }, prompt: { type: "string" } },
+      required: ["prompt"],
+    },
+  },
+  {
+    name: "cloudflare_ai",
+    description: "Edge inference on the Cloudflare Workers AI backbone.",
+    intercepted: false,
+    inputSchema: {
+      type: "object",
+      properties: { model: { type: "string", description: "@cf/… model id" }, prompt: { type: "string" } },
+      required: ["prompt"],
+    },
+  },
+  {
+    name: "flux_image",
+    description: "Generate an image via FLUX.1-schnell (Cloudflare Workers AI).",
+    intercepted: false,
+    inputSchema: {
+      type: "object",
+      properties: { prompt: { type: "string", description: "image prompt" } },
+      required: ["prompt"],
+    },
+  },
 ];
 
 const READ_ONLY: Record<string, boolean> = {
@@ -103,6 +149,10 @@ const READ_ONLY: Record<string, boolean> = {
   classify_intent: true,
   search_threads: true,
   run_scraper: true,
+  model_infer: true,
+  hf_infer: true,
+  cloudflare_ai: true,
+  flux_image: true,
 };
 
 function evalBlocked(args: Record<string, unknown>): boolean {
@@ -220,6 +270,17 @@ mcp.post("/", async (c) => {
           return c.json(rpcResult(id, { ok: true, message: "inbox search requires Gmail access token (not yet provisioned)", query: args.query }));
         case "run_scraper":
           return c.json(rpcResult(id, { ok: true, message: "scrape dispatched to stress-test tier (Awaiting counter config)" }));
+        case "model_infer":
+        case "hf_infer":
+        case "cloudflare_ai":
+        case "flux_image": {
+          const result = await execute(tool.name, args, {
+            DB: c.env.DB,
+            VAULT_CIPHER_KEY: undefined,
+            operator: { sub: "anonymous", email: null },
+          } as unknown as Parameters<typeof execute>[2]);
+          return c.json(rpcResult(id, result.output));
+        }
         default:
           return c.json(rpcError(id, -32601, `Tool ${tool.name} has no executor`));
       }

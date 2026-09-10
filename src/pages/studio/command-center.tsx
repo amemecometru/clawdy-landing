@@ -1,12 +1,16 @@
 import * as React from "react";
 import { SectionHeader, RawJson } from "@/components/studio/section-header";
 import { TelemetryStream, type TelemetryEvent } from "@/components/studio/telemetry-stream";
-import { fetchTasks, type Task } from "@/lib/api";
+import { LiveFeedWidget } from "@/components/studio/live-feed-widget";
+import { WidgetFeedDrawer } from "@/components/studio/widget-feed-drawer";
+import { fetchTasks, fetchWidgets, mountWidget, unmountWidget, type PortalWidget, type Task } from "@/lib/api";
 
 /**
- * Command Center — operational pulse check.
- * Operator: live health, throughput stats, recent executions.
- * Agent: raw edge state, root tokens, current task graph.
+ * Command Center — operational pulse + the operator dashboard grid.
+ *
+ * Operator view: live stats + mounted WidgetFeed stream cards. The backend
+ * (task queue, feeds, events) runs behind-the-curtain; humans see results.
+ * Agent view: raw edge state + root tokens (the MCP schema side).
  */
 export function CommandCenter({ mode, onMode }: { mode: "operator" | "agent"; onMode: (m: "operator" | "agent") => void }) {
   const [tasks, setTasks] = React.useState<Task[]>([]);
@@ -15,24 +19,30 @@ export function CommandCenter({ mode, onMode }: { mode: "operator" | "agent"; on
     { ts: Date.now(), level: "info", message: "Command Center online — connecting to edge worker" },
   ]);
   const [error, setError] = React.useState<string | null>(null);
+  const [widgets, setWidgets] = React.useState<PortalWidget[]>([]);
+  const [drawerOpen, setDrawerOpen] = React.useState<boolean>(
+    new URLSearchParams(window.location.search).get("widgetfeed") === "1"
+  );
 
   React.useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
-        const [healthRes, taskRes] = await Promise.all([
+        const [healthRes, taskRes, widgetRes] = await Promise.all([
           fetch("/api/health").then((r) => (r.ok ? (r.json() as Promise<Record<string, unknown>>) : null)),
           fetchTasks(),
+          fetchWidgets(),
         ]);
         if (cancelled) return;
         setHealth(healthRes);
         setTasks(taskRes);
+        setWidgets(widgetRes.widgets);
         setError(null);
-        setEvents((prev) => [...prev.slice(-49), {
+        setEvents((prev) => [...prev.slice(-39), {
           ts: Date.now(),
           level: "info",
-          message: `queue sync — ${taskRes.length} tasks · ${taskRes.filter((t) => t.status === "pending").length} awaiting approval`,
+          message: `queue sync — ${taskRes.length} tasks · ${taskRes.filter((t) => t.status === "pending").length} awaiting approval · ${widgetRes.widgets.length} widgets mounted`,
         }]);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "health sync failed");
@@ -48,19 +58,30 @@ export function CommandCenter({ mode, onMode }: { mode: "operator" | "agent"; on
   }, []);
 
   const pending = tasks.filter((t) => t.status === "pending").length;
-  const approved = tasks.filter((t) => t.status === "approved").length;
   const executed = tasks.filter((t) => t.status === "executed").length;
+  const approved = tasks.filter((t) => t.status === "approved").length;
+
+  async function handleMount(platform: string, config?: Record<string, string>) {
+    try {
+      await mountWidget(platform, config ?? {});
+      setWidgets((w) => [...w]);
+      const fresh = await fetchWidgets();
+      setWidgets(fresh.widgets);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "mount failed");
+    }
+  }
+
+  async function handleUnmount(platform: string) {
+    await unmountWidget(platform);
+    setWidgets((w) => w.filter((x) => x.platform !== platform));
+  }
 
   const agentState = {
     host: new URL(window.location.href).hostname,
     worker_health: health,
-    task_graph: {
-      total: tasks.length,
-      pending,
-      approved,
-      executed,
-      ids: tasks.map((t) => t.id),
-    },
+    task_graph: { total: tasks.length, pending, approved, executed },
+    portal_widgets: widgets.map((w) => ({ platform: w.platform, type: w.type, config: w.config, position: w.position })),
     jsonrpc_connections: ["/mcp/v1 connected=yes"],
     session_root_token: "session:… (opaque, KV-backed)",
   };
@@ -69,7 +90,7 @@ export function CommandCenter({ mode, onMode }: { mode: "operator" | "agent"; on
     <div>
       <SectionHeader
         title="Command Center"
-        description="Operational pulse — agent loops, throughput, and system health."
+        description="Your agent economy, live. Approve work, watch inbound signals stream in."
         mode={mode}
         onMode={onMode}
       />
@@ -87,7 +108,66 @@ export function CommandCenter({ mode, onMode }: { mode: "operator" | "agent"; on
             <Stat label="Executed" value={String(executed)} accent="text-beacon" />
           </div>
 
-          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          {/* WidgetFeed dashboard grid */}
+          <div className="mt-6">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="relative flex size-2">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-beacon opacity-60" />
+                  <span className="relative inline-flex size-2 rounded-full bg-beacon" />
+                </span>
+                <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                  Live Feed Grid
+                </h2>
+              </div>
+              <button
+                onClick={() => setDrawerOpen(true)}
+                className="inline-flex items-center gap-2 rounded-md border border-ember/40 bg-rust px-3 py-1.5 font-mono text-xs font-semibold text-chrome transition hover:bg-ember cursor-pointer"
+              >
+                <span className="text-base leading-none">+</span> WidgetFeed
+              </button>
+            </div>
+
+            {widgets.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-silver/30 p-10 text-center">
+                <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl bg-muted/30 text-2xl text-silver">◈</div>
+                <h3 className="text-sm font-semibold text-porcelain">No widgets mounted yet</h3>
+                <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">
+                  Mount a live feed stream (YouTube, Medium, Substack, HackerNoon) or a webhook event
+                  stream (X, Facebook) to keep an eye on your machine economy in realtime.
+                </p>
+                <button
+                  onClick={() => setDrawerOpen(true)}
+                  className="mt-4 rounded-md bg-ember px-4 py-2 text-sm font-semibold text-chrome transition hover:bg-ember/85 cursor-pointer"
+                >
+                  + Mount WidgetFeed
+                </button>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {widgets.map((w) => (
+                  <LiveFeedWidget key={w.platform} widget={w} onUnmount={handleUnmount} />
+                ))}
+                <button
+                  onClick={() => setDrawerOpen(true)}
+                  className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-silver/30 text-muted-foreground transition hover:border-ember/50 hover:text-porcelain cursor-pointer"
+                >
+                  <span className="grid size-10 place-items-center rounded-full bg-muted/40 text-xl">+</span>
+                  <span className="font-mono text-xs uppercase tracking-widest">Add widget</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Telemetry ticker (small, unobtrusive) */}
+          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+            <div className="flex flex-col gap-2 rounded-xl border border-silver/20 bg-card p-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Agent Ticker</h2>
+                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] text-emerald-400">● LIVE</span>
+              </div>
+              <TelemetryStream events={events} className="h-[200px]" />
+            </div>
             <div className="rounded-xl border border-silver/20 bg-card p-4">
               <h2 className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground">Recent Executions</h2>
               {executed === 0 ? (
@@ -104,18 +184,21 @@ export function CommandCenter({ mode, onMode }: { mode: "operator" | "agent"; on
                 </div>
               )}
             </div>
-            <div className="flex flex-col gap-2 rounded-xl border border-silver/20 bg-card p-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Telemetry</h2>
-                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] text-emerald-400">● LIVE</span>
-              </div>
-              <TelemetryStream events={events} className="h-[240px]" />
-            </div>
           </div>
         </>
       ) : (
         <RawJson data={agentState} />
       )}
+
+      <WidgetFeedDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        mounted={widgets.map((w) => w.platform)}
+        onMount={(id, config) => {
+          void handleMount(id, config);
+          setDrawerOpen(false);
+        }}
+      />
     </div>
   );
 }

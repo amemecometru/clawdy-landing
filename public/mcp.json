@@ -1,0 +1,41 @@
+{
+  "name": "clawdyclaw",
+  "version": "1.1.0",
+  "type": "service-node",
+  "endpoints": {
+    "mcp": "https://clawdyclaw.com/mcp/v1/manifest.json",
+    "rpc": "https://clawdyclaw.com/mcp/v1",
+    "protocol": "https://clawdyclaw.com/.well-known/"
+  },
+  "capabilities": {
+    "tools": [
+      "list_tasks",
+      "classify_intent",
+      "send_email",
+      "search_threads",
+      "draft_reply",
+      "run_scraper",
+      "model_infer",
+      "hf_infer",
+      "cloudflare_ai",
+      "flux_image"
+    ],
+    "models": {
+      "registry": "https://clawdyclaw.com/api/v1/models",
+      "providers": ["cloudflare", "huggingface", "anthropic", "grok", "gemini", "flux"],
+      "backbone": "worker-edge"
+    },
+    "feeds": {
+      "widgets": "https://clawdyclaw.com/api/v1/portal/widgets",
+      "streams": ["youtube", "medium", "substack", "hackernoon"],
+      "webhook_events": ["x", "facebook"]
+    },
+    "hitl": {
+      "enforcement": "interception-gate",
+      "intercepted": ["send_email", "draft_reply"],
+      "approval_queue": "https://clawdyclaw.com/api/v1/tasks"
+    },
+    "settlement": ["lightning", "evm-402", "agentic-wallet"]
+  },
+  "@context": "https://schema.org"
+}

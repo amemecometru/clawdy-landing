@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, Bot, Cpu } from "lucide-react";
+import { Bot } from "lucide-react";
+import { SiteHeader } from "@/components/site-header";
 import AuthCard from "@/components/auth/auth-card";
 
 export default function LoginPage() {
@@ -18,24 +19,7 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-obsidian via-obsidian/80 to-transparent" />
       </div>
 
-      {/* Top bar */}
-      <header className="relative z-10 flex items-center justify-between px-6 py-5 md:px-10">
-        <a href="/" className="flex items-center gap-3">
-          <span className="grid size-9 place-items-center rounded-lg bg-rust font-mono text-lg font-black text-porcelain">
-            {"{"}
-            <Cpu className="ml-0.5 size-4 text-ember" />
-          </span>
-          <span className="font-mono text-sm font-bold tracking-tight text-porcelain">
-            clawdyclaw<span className="text-ember">.com</span>
-          </span>
-        </a>
-        <a
-          href="/"
-          className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-porcelain/60 transition-colors hover:text-ember"
-        >
-          <ArrowLeft className="size-4" /> back to site
-        </a>
-      </header>
+      <SiteHeader />
 
       {/* Content */}
       <main className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 items-center justify-center gap-16 px-6 py-10">

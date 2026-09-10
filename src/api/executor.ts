@@ -8,6 +8,7 @@
  */
 
 import { getToken, decryptSecret, type VaultEnv } from "../db/vault";
+import { infer, type InferContext } from "./infer";
 
 export interface ExecutionResult {
   ok: boolean;
@@ -17,6 +18,7 @@ export interface ExecutionResult {
 export interface ExecutorContext extends VaultEnv {
   DB: D1Database;
   operator: { sub: string; email: string | null };
+  CF_ACCOUNT_ID?: string;
 }
 
 async function providerToken(
@@ -131,9 +133,31 @@ export async function execute(
       };
     }
 
+    // ── Model inference family (openWeights via HuggingFace, CF edge, image) ──
+    case "model_infer": {
+      const provider = (args.provider as string) ?? "huggingface";
+      const result = await infer(provider, args as { model?: string; prompt?: string; messages?: { role: string; content: string }[] }, ctx as unknown as InferContext);
+      return { ok: result.ok, output: result };
+    }
+    case "hf_infer":
+      return handleInfer(ctx, "huggingface", args);
+    case "cloudflare_ai":
+      return handleInfer(ctx, "cloudflare", args);
+    case "flux_image":
+      return handleInfer(ctx, "flux", args);
+
     default:
       return { ok: false, output: { error: "UNKNOWN_TOOL", tool } };
   }
+}
+
+async function handleInfer(
+  ctx: ExecutorContext,
+  provider: string,
+  args: Record<string, unknown>
+): Promise<ExecutionResult> {
+  const result = await infer(provider, args as { model?: string; prompt?: string; image_prompt?: string }, ctx as unknown as InferContext);
+  return { ok: result.ok, output: result };
 }
 
 function makeMime(to: string, subject: string, body: string): string {
