@@ -17,7 +17,6 @@ env.d.ts
 .dev.vars.example
 .env.swp
 EXECUTION-ROADMAPII.md
-components
 wrangler.jsonc
 rh-live-api-base64.txt
 x-Accessing-Ads-accounts             
