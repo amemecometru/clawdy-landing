@@ -13,7 +13,8 @@
     "test": "vitest run",
     "deploy": "vite build && wrangler deploy",
     "lint": "tsc --noEmit",
-    "db:migrate": "wrangler d1 execute clawdyclaw-db --remote --file=migrations/0001_init.sql"
+    "db:migrate": "wrangler d1 execute clawdyclaw-db --remote --file=migrations/0001_init.sql",
+    "db:migrate:brand": "wrangler d1 execute clawdyclaw-db --remote --file=migrations/0005_professional_brand_sites.sql"
   },
   "dependencies": {
     "@number-flow/react": "^0.6.1",

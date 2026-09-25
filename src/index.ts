@@ -27,6 +27,9 @@ import telemetry from "./api/telemetry";
 import sandbox from "./api/sandbox";
 import feeds from "./api/feeds";
 import models from "./api/models";
+import professionals from "./api/professionals";
+import campaigns from "./api/campaigns";
+import qualify from "./api/qualify";
 import { migrate } from "./db/schema";
 
 // ── Env bindings ──────────────────────────────────────────────────────────────
@@ -50,7 +53,7 @@ const app = new Hono<{ Bindings: ClawdyEnv }>();
 // CORS for all /api/* routes (studio cross-origin calls, webhook sources)
 app.use("/api/*", cors({
   origin: ["https://clawdyclaw.com", "https://agents.clawdyclaw.com", "http://localhost:5173"],
-  allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
   credentials: true,
 }));
@@ -86,6 +89,18 @@ app.route("/api/v1", feeds);
 // ── Models registry (Cloudflare backbone + openWeights + legacy) ─────────────
 
 app.route("/api/v1", models);
+
+// ── Professional Personal Brand Sites ────────────────────────────────────────
+
+app.route("/api/v1/professionals", professionals);
+
+// ── Outreach campaigns (HITL-gated 3-step sequence) ───────────────────────────
+
+app.route("/api/v1/campaigns", campaigns);
+
+// ── Lead qualification (public, stateless) ───────────────────────────────────
+
+app.route("/api/v1/qualify", qualify);
 
 // ── MCP Tool Server (JSON-RPC over HTTP) ──────────────────────────────────────
 // Mounted explicitly (not via route()) so both the bare and trailing-slash

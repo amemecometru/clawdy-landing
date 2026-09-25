@@ -6,6 +6,14 @@
  */
 
 export const SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS sessions (
+  sub        TEXT PRIMARY KEY,
+  email      TEXT,
+  name       TEXT,
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
 CREATE TABLE IF NOT EXISTS tasks (
   id            TEXT PRIMARY KEY,
   source        TEXT NOT NULL,
@@ -96,6 +104,160 @@ CREATE TABLE IF NOT EXISTS feed_events (
 );
 
 CREATE INDEX IF NOT EXISTS idx_feed_events_platform ON feed_events(platform, created_at);
+
+CREATE TABLE IF NOT EXISTS professionals (
+  id                    TEXT PRIMARY KEY,
+  owner_sub             TEXT NOT NULL REFERENCES sessions(sub),
+  first_name            TEXT NOT NULL,
+  last_name             TEXT NOT NULL,
+  email                 TEXT NOT NULL,
+  current_role          TEXT NOT NULL,
+  current_company       TEXT,
+  years_experience      INTEGER,
+  target_role           TEXT NOT NULL,
+  target_industry       TEXT,
+  linkedin_url          TEXT,
+  resume_url            TEXT,
+  resume_content        TEXT,
+  source                TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('manual', 'linkedin', 'job_board', 'referral')),
+  status                TEXT NOT NULL DEFAULT 'lead' CHECK (status IN ('lead', 'qualified', 'in_design', 'approved', 'live', 'cancelled')),
+  tier                  TEXT NOT NULL DEFAULT 'basic' CHECK (tier IN ('basic', 'professional', 'sophisticated')),
+  domain_preference     TEXT,
+  domain_tld            TEXT NOT NULL DEFAULT '.com',
+  domain_custom_tld     TEXT,
+  professional_email    TEXT,
+  budget_range          TEXT NOT NULL DEFAULT 'flexible' CHECK (budget_range IN ('flexible', 'under_200', '200_500', '500_plus')),
+  notes                 TEXT,
+  qualification_score   REAL NOT NULL DEFAULT 0,
+  qualified_at          INTEGER,
+  created_at            INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at            INTEGER NOT NULL DEFAULT (unixepoch()),
+  archived_at           INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS idx_professionals_owner ON professionals(owner_sub, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_professionals_status ON professionals(owner_sub, status);
+CREATE INDEX IF NOT EXISTS idx_professionals_tier ON professionals(owner_sub, tier);
+CREATE INDEX IF NOT EXISTS idx_professionals_source ON professionals(owner_sub, source);
+
+CREATE TABLE IF NOT EXISTS professional_sites (
+  id                        TEXT PRIMARY KEY,
+  professional_id           TEXT NOT NULL REFERENCES professionals(id),
+  tier                      TEXT NOT NULL CHECK (tier IN ('basic', 'professional', 'sophisticated')),
+  status                    TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'awaiting_approval', 'approved', 'deployed', 'live', 'archived')),
+  hero_headline             TEXT,
+  hero_tagline              TEXT,
+  about_summary             TEXT,
+  profile_image_url         TEXT,
+  domain_name               TEXT,
+  domain_tld                TEXT NOT NULL DEFAULT '.com',
+  domain_status             TEXT NOT NULL DEFAULT 'checking' CHECK (domain_status IN ('checking', 'available', 'reserved', 'registered', 'failed')),
+  domain_registrar          TEXT,
+  domain_nameservers        TEXT,
+  site_url                  TEXT,
+  professional_email        TEXT,
+  email_routing_status      TEXT NOT NULL DEFAULT 'pending' CHECK (email_routing_status IN ('pending', 'configured', 'failed')),
+  email_inbound_target      TEXT,
+  portfolio_items           TEXT,
+  meta_description          TEXT,
+  og_title                  TEXT,
+  og_image                  TEXT,
+  submitted_for_review_at   INTEGER,
+  approved_by               TEXT REFERENCES sessions(sub),
+  approved_at               INTEGER,
+  approval_notes            TEXT,
+  deployed_at               INTEGER,
+  deployed_by               TEXT,
+  last_updated_at           INTEGER,
+  created_at                INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at                INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS idx_professional_sites_professional ON professional_sites(professional_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_professional_sites_status ON professional_sites(status);
+
+CREATE TABLE IF NOT EXISTS professional_site_sections (
+  id                    TEXT PRIMARY KEY,
+  professional_site_id  TEXT NOT NULL REFERENCES professional_sites(id),
+  section_type          TEXT NOT NULL CHECK (section_type IN ('hero', 'about', 'portfolio', 'services', 'testimonials', 'blog', 'cta')),
+  tier_minimum          TEXT NOT NULL CHECK (tier_minimum IN ('basic', 'professional', 'sophisticated')),
+  content               TEXT NOT NULL,
+  display_order         INTEGER NOT NULL DEFAULT 0,
+  enabled               INTEGER NOT NULL DEFAULT 1,
+  created_at            INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_sections_site ON professional_site_sections(professional_site_id, display_order);
+
+CREATE TABLE IF NOT EXISTS professional_campaigns (
+  id          TEXT PRIMARY KEY,
+  owner_sub   TEXT NOT NULL REFERENCES sessions(sub),
+  name        TEXT NOT NULL,
+  description TEXT,
+  tier        TEXT NOT NULL CHECK (tier IN ('basic', 'professional', 'sophisticated')),
+  status      TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'paused', 'completed')),
+  created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS idx_professional_campaigns_owner ON professional_campaigns(owner_sub, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS campaign_leads (
+  id              TEXT PRIMARY KEY,
+  campaign_id     TEXT NOT NULL REFERENCES professional_campaigns(id),
+  professional_id TEXT NOT NULL REFERENCES professionals(id),
+  sequence_step   INTEGER NOT NULL DEFAULT 0,
+  sequence_status TEXT NOT NULL DEFAULT 'pending' CHECK (sequence_status IN ('pending', 'message_approved', 'sent', 'replied', 'positive', 'negative', 'no_reply', 'unsubscribe', 'stopped')),
+  next_action_at  INTEGER,
+  stop_reason     TEXT,
+  created_at      INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at      INTEGER NOT NULL DEFAULT (unixepoch()),
+  UNIQUE (campaign_id, professional_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_campaign_leads_campaign ON campaign_leads(campaign_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_campaign_leads_professional ON campaign_leads(professional_id);
+
+CREATE TABLE IF NOT EXISTS campaign_messages (
+  id                 TEXT PRIMARY KEY,
+  campaign_lead_id   TEXT NOT NULL REFERENCES campaign_leads(id),
+  step               INTEGER NOT NULL CHECK (step BETWEEN 0 AND 2),
+  message_type       TEXT NOT NULL CHECK (message_type IN ('discovery', 'warm_reply', 'no_reply_followup')),
+  subject            TEXT,
+  body               TEXT NOT NULL,
+  personalization    TEXT,
+  status             TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'awaiting_approval', 'approved', 'sent', 'failed', 'bounced', 'replied')),
+  approved_by        TEXT REFERENCES sessions(sub),
+  approved_at        INTEGER,
+  sent_at            INTEGER,
+  gmail_message_id   TEXT,
+  provider_response  TEXT,
+  created_at         INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at         INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS idx_campaign_messages_lead ON campaign_messages(campaign_lead_id, step, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS professional_subscriptions (
+  id                     TEXT PRIMARY KEY,
+  professional_id        TEXT NOT NULL REFERENCES professionals(id),
+  tier                   TEXT NOT NULL CHECK (tier IN ('basic', 'professional', 'sophisticated')),
+  billing_period_start   INTEGER NOT NULL,
+  billing_period_end     INTEGER NOT NULL,
+  price_setup            REAL NOT NULL,
+  price_monthly          REAL NOT NULL,
+  domain_addon_price     REAL NOT NULL DEFAULT 0,
+  total_setup            REAL NOT NULL,
+  total_monthly          REAL NOT NULL,
+  status                 TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'past_due', 'cancelled', 'failed')),
+  stripe_subscription_id TEXT,
+  cancel_reason          TEXT,
+  cancelled_at           INTEGER,
+  created_at             INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at             INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS idx_professional_subscriptions_professional ON professional_subscriptions(professional_id, created_at DESC);
 `;
 
 export async function migrate(db: D1Database): Promise<void> {

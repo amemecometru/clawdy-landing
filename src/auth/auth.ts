@@ -18,6 +18,7 @@
  */
 
 import { Hono } from "hono";
+import { ensureSessionIdentity } from "../db/sessions";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Environment bindings
@@ -28,6 +29,7 @@ export interface AuthEnv {
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   AUTH_SECRET: string;
+  DB?: D1Database;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -250,6 +252,19 @@ export function createAuthRouter() {
     await c.env.SESSIONS.put(`session:${sessionToken}`, JSON.stringify(session), {
       expirationTtl: SESSION_TTL,
     });
+
+    // Mirror the identity into D1 so owner-scoped records can reference it.
+    if (c.env.DB) {
+      try {
+        await ensureSessionIdentity(c.env.DB, {
+          sub: claims.sub,
+          email: claims.email ?? null,
+          name: claims.name ?? null,
+        });
+      } catch {
+        // Identity mirroring is best-effort; the KV session is authoritative.
+      }
+    }
 
     const res = c.redirect(callbackUrl || "/", 302);
     res.headers.append(
