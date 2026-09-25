@@ -10,6 +10,7 @@
     "dev": "vite dev",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "test": "vitest run",
     "deploy": "vite build && wrangler deploy",
     "lint": "tsc --noEmit",
     "db:migrate": "wrangler d1 execute clawdyclaw-db --remote --file=migrations/0001_init.sql"
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.0.0",
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
     "@cloudflare/workers-types": "^5.20260907.1",
     "@tailwindcss/vite": "^4.0.0",
     "@types/node": "^22.10.0",
@@ -40,6 +42,7 @@
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.0",
+    "vitest": "^4.1.11",
     "wrangler": "^4.129.1"
   }
 }

@@ -1,3 +1,7 @@
+codemode.md
+VITEsrcMCP.md
+.text-file.txt
+src/.test-file.txt
 package-lock.json
 node_modules
 dist
@@ -37,3 +41,6 @@ x-Pagination
 x-rate-limiting
 x-Sandbox                            
 x-step-by-step-guide
+.superpowers*
+public/robots.txt
+cli/clawdy.mjs.save
