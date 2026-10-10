@@ -27,6 +27,7 @@ import telemetry from "./api/telemetry";
 import sandbox from "./api/sandbox";
 import feeds from "./api/feeds";
 import models from "./api/models";
+import tools from "./api/tools";
 import professionals from "./api/professionals";
 import campaigns from "./api/campaigns";
 import qualify from "./api/qualify";
@@ -44,6 +45,8 @@ export interface ClawdyEnv {
   GITHUB_CLIENT_SECRET?: string;
   VAULT_CIPHER_KEY?: string;
   CF_ACCOUNT_ID?: string;
+  /** Encrypted Worker secret (dashboard Settings > Variables). Never in repo. */
+  CLOUDFLARE_API_TOKEN?: string;
 }
 
 // ── Root app ──────────────────────────────────────────────────────────────────
@@ -89,6 +92,10 @@ app.route("/api/v1", feeds);
 // ── Models registry (Cloudflare backbone + openWeights + legacy) ─────────────
 
 app.route("/api/v1", models);
+
+// ── Tool registry (agentic capability catalog; backs /mcp/v1) ────────────────
+
+app.route("/api/v1", tools);
 
 // ── Professional Personal Brand Sites ────────────────────────────────────────
 
@@ -183,8 +190,12 @@ const WELL_KNOWN_MCP = {
     ],
     models: {
       registry: "https://clawdyclaw.com/api/v1/models",
-      providers: ["cloudflare", "huggingface", "anthropic", "grok", "gemini", "flux"],
+      providers: ["cloudflare", "meta", "openai", "anthropic", "gemini", "grok", "deepseek", "mistral", "qwen", "kimi", "zai", "groq", "together", "cohere", "perplexity", "amazon", "openrouter", "unorouter", "freellmapi", "huggingface", "flux", "elevenlabs"],
       backbone: "worker-edge",
+    },
+    tool_registry: {
+      registry: "https://clawdyclaw.com/api/v1/tools",
+      categories: ["communication", "research", "inference", "creative", "automation", "commerce", "memory", "orchestration"],
     },
     feeds: {
       widgets: "https://clawdyclaw.com/api/v1/portal/widgets",

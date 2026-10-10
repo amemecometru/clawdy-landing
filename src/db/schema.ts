@@ -258,6 +258,19 @@ CREATE TABLE IF NOT EXISTS professional_subscriptions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_professional_subscriptions_professional ON professional_subscriptions(professional_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS inference_usage (
+  id                TEXT PRIMARY KEY,
+  operator_sub      TEXT NOT NULL,
+  provider          TEXT NOT NULL,
+  model             TEXT NOT NULL,
+  prompt_tokens     INTEGER,
+  completion_tokens INTEGER,
+  fee_bps           INTEGER NOT NULL DEFAULT 0,
+  created_at        INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS idx_inference_usage_operator ON inference_usage(operator_sub, created_at DESC);
 `;
 
 export async function migrate(db: D1Database): Promise<void> {

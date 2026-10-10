@@ -18,6 +18,7 @@
 
 import { Hono } from "hono";
 import { getSessionUser, sessionUserOrDefault } from "../lib/session";
+import { webhookSecretValid } from "../lib/require-auth";
 import {
   FEED_PLATFORMS,
   feedSourceUrl,
@@ -30,6 +31,7 @@ import {
 export interface FeedsEnv {
   DB: D1Database;
   SESSIONS: KVNamespace;
+  WEBHOOK_SECRET?: string;
 }
 
 const CACHE_TTL = 120;
@@ -102,8 +104,8 @@ feeds.get("/portal/widgets", async (c) => {
   return c.json({ user: { sub: user.sub, email: user.email }, widgets });
 });
 
-feeds.post("/portal/widgets", async (c) => {
-  const user = sessionUserOrDefault(await getSessionUser(c.env, c.req.raw));
+feeds.post("/portal/widgets", requireSession, async (c) => {
+  const user = authedUser(c);
   let body: { platform?: string; config?: Record<string, string>; position?: number } = {};
   try { body = await c.req.json(); } catch { /* empty */ }
   const platform = body.platform;
@@ -125,16 +127,16 @@ feeds.post("/portal/widgets", async (c) => {
   return c.json({ ok: true, platform, connected: true });
 });
 
-feeds.delete("/portal/widgets/:platform", async (c) => {
-  const user = sessionUserOrDefault(await getSessionUser(c.env, c.req.raw));
+feeds.delete("/portal/widgets/:platform", requireSession, async (c) => {
+  const user = authedUser(c);
   await c.env.DB.prepare("DELETE FROM portal_widgets WHERE user_id = ? AND platform = ?")
     .bind(user.sub, c.req.param("platform"))
     .run();
   return c.json({ ok: true, unmounted: c.req.param("platform") });
 });
 
-feeds.post("/portal/widgets/:platform/move", async (c) => {
-  const user = sessionUserOrDefault(await getSessionUser(c.env, c.req.raw));
+feeds.post("/portal/widgets/:platform/move", requireSession, async (c) => {
+  const user = authedUser(c);
   let body: { position?: number } = {};
   try { body = await c.req.json(); } catch { /* empty */ }
   const position = body.position ?? 0;
@@ -173,6 +175,16 @@ feeds.post("/feeds/webhook/:platform", async (c) => {
   const platform = c.req.param("platform");
   const def = FEED_PLATFORMS.find((p) => p.id === platform);
   if (!def) return c.json({ error: "unknown platform" }, 404);
+
+  // Shared-secret gate — per-platform FEED_SECRET_<PLATFORM> wins, falls
+  // back to the global WEBHOOK_SECRET. Until configured, the check is
+  // skipped with a warn (see require-auth.ts).
+  const envRec = c.env as unknown as Record<string, unknown>;
+  const perPlatform = `FEED_SECRET_${platform.toUpperCase()}`;
+  const secretName = typeof envRec[perPlatform] === "string" ? perPlatform : "WEBHOOK_SECRET";
+  if (!webhookSecretValid(envRec, secretName, c.req.raw)) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
 
   const raw = await c.req.text();
   let payload: unknown;

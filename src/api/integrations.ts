@@ -10,7 +10,7 @@
  */
 
 import { Hono } from "hono";
-import { getSessionUser, sessionUserOrDefault } from "../lib/session";
+import { requireSession, authedUser } from "../lib/require-auth";
 import { storeToken, listTokens, type VaultEnv } from "../db/vault";
 
 export interface IntegrationEnv extends VaultEnv {
@@ -186,8 +186,10 @@ const integrations = new Hono<{ Bindings: IntegrationEnv }>();
 /**
  * GET /api/v1/integrations
  */
-integrations.get("/integrations", async (c) => {
-  const user = sessionUserOrDefault(await getSessionUser(c.env, c.req.raw));
+// Catalog + per-user connection status — signed-in only. The response leaks
+// which providers the operator uses, and `connected` flags per provider.
+integrations.get("/integrations", requireSession, async (c) => {
+  const user = authedUser(c);
   const tokens = await listTokens(c.env.DB, user.sub);
   const connected = new Map(tokens.map((t) => [t.provider, true]));
 
@@ -356,7 +358,12 @@ integrations.get("/auth/:provider/callback", async (c) => {
 /**
  * POST /api/v1/integrations/:provider/key — bind an API key.
  */
-integrations.post("/integrations/:provider/key", async (c) => {
+/**
+ * POST /api/v1/integrations/:provider/key
+ * Bind an API key — signed-in only. The key is stored under the session
+ * user's sub; anonymous callers could previously write keys into the vault.
+ */
+integrations.post("/integrations/:provider/key", requireSession, async (c) => {
   const provider = c.req.param("provider");
   const def = INTEGRATIONS.find((i) => i.provider === provider);
   if (!def) return c.json({ error: "Unknown provider" }, 404);
@@ -369,7 +376,7 @@ integrations.post("/integrations/:provider/key", async (c) => {
   const key = body.key;
   if (!key) return c.json({ error: "key is required" }, 400);
 
-  const user = sessionUserOrDefault(await getSessionUser(c.env, c.req.raw));
+  const user = authedUser(c);
   await storeToken(c.env.DB, c.env, { user_id: user.sub, provider, access_token: key });
 
   return c.json({ ok: true, provider, connected: true });

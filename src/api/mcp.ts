@@ -16,6 +16,8 @@ import { Hono } from "hono";
 import { classify, generateTaskId } from "./proxy-bridge";
 import { createTask, listTasks } from "../db/tasks";
 import { execute } from "./executor";
+import { getSessionUser } from "../lib/session";
+import { TOOL_DEFS, READ_ONLY_TOOLS, type ToolDef } from "./tools";
 
 export interface McpEnv {
   DB: D1Database;
@@ -26,134 +28,25 @@ interface McpTool {
   name: string;
   description: string;
   intercepted: boolean;
-  inputSchema: {
-    type: "object";
-    properties: Record<string, { type: string; description?: string }>;
-    required?: string[];
-  };
+  inputSchema: ToolDef["inputSchema"];
 }
 
-const TOOLS: McpTool[] = [
-  {
-    name: "list_tasks",
-    description: "List the HITL task queue, filterable by status.",
-    intercepted: false,
-    inputSchema: {
-      type: "object",
-      properties: { status: { type: "string", description: "pending | approved | rejected | executed" } },
-    },
-  },
-  {
-    name: "classify_intent",
-    description: "Run intent classification over a raw inbound payload. Read-only.",
-    intercepted: false,
-    inputSchema: {
-      type: "object",
-      properties: { source: { type: "string" }, payload: { type: "object" } },
-      required: ["source", "payload"],
-    },
-  },
-  {
-    name: "send_email",
-    description: "Send a personalized outreach email. Requires human approval.",
-    intercepted: true,
-    inputSchema: {
-      type: "object",
-      properties: {
-        to: { type: "string" },
-        subject: { type: "string" },
-        body: { type: "string" },
-        reply_to: { type: "string" },
-      },
-      required: ["to", "subject", "body"],
-    },
-  },
-  {
-    name: "search_threads",
-    description: "Search the inbox for a thread. Read-only.",
-    intercepted: false,
-    inputSchema: {
-      type: "object",
-      properties: { query: { type: "string" } },
-      required: ["query"],
-    },
-  },
-  {
-    name: "draft_reply",
-    description: "Draft a reply to an existing thread. Requires human approval to send.",
-    intercepted: true,
-    inputSchema: {
-      type: "object",
-      properties: { thread_id: { type: "string" }, draft_body: { type: "string" } },
-      required: ["thread_id", "draft_body"],
-    },
-  },
-  {
-    name: "run_scraper",
-    description: "Run a marketplace scraping routine. Results enqueue as tasks.",
-    intercepted: false,
-    inputSchema: {
-      type: "object",
-      properties: { target: { type: "string", description: "e.g. craigslist, facebook_marketplace" }, query: { type: "string" } },
-      required: ["target", "query"],
-    },
-  },
-  {
-    name: "model_infer",
-    description: "Run inference on any connected model family (provider-agnostic router).",
-    intercepted: false,
-    inputSchema: {
-      type: "object",
-      properties: {
-        provider: { type: "string", description: "cloudflare | huggingface | anthropic | grok | gemini | flux" },
-        model: { type: "string", description: "model id; defaults per provider" },
-        prompt: { type: "string" },
-      },
-      required: ["prompt"],
-    },
-  },
-  {
-    name: "hf_infer",
-    description: "Open-weights inference via HuggingFace router (llama, mistral, qwen…).",
-    intercepted: false,
-    inputSchema: {
-      type: "object",
-      properties: { model: { type: "string" }, prompt: { type: "string" } },
-      required: ["prompt"],
-    },
-  },
-  {
-    name: "cloudflare_ai",
-    description: "Edge inference on the Cloudflare Workers AI backbone.",
-    intercepted: false,
-    inputSchema: {
-      type: "object",
-      properties: { model: { type: "string", description: "@cf/… model id" }, prompt: { type: "string" } },
-      required: ["prompt"],
-    },
-  },
-  {
-    name: "flux_image",
-    description: "Generate an image via FLUX.1-schnell (Cloudflare Workers AI).",
-    intercepted: false,
-    inputSchema: {
-      type: "object",
-      properties: { prompt: { type: "string", description: "image prompt" } },
-      required: ["prompt"],
-    },
-  },
-];
+/**
+ * Executable tools, derived from the Tool Registry (tools.ts) — the single
+ * source of truth. Registry entries without an `mcpName` are catalog-only
+ * (planned/stub) and are not exposed on the execution surface.
+ */
+const TOOLS: McpTool[] = TOOL_DEFS.filter((t) => t.mcpName).map((t) => ({
+  name: t.mcpName as string,
+  description: t.description,
+  intercepted: t.intercepted,
+  inputSchema: t.inputSchema,
+}));
 
-const READ_ONLY: Record<string, boolean> = {
-  list_tasks: true,
-  classify_intent: true,
-  search_threads: true,
-  run_scraper: true,
-  model_infer: true,
-  hf_infer: true,
-  cloudflare_ai: true,
-  flux_image: true,
-};
+/** Read-only tools skip the interception gate (derived from the registry). */
+const READ_ONLY: Record<string, boolean> = Object.fromEntries(
+  [...READ_ONLY_TOOLS].map((name) => [name, true])
+);
 
 function evalBlocked(args: Record<string, unknown>): boolean {
   const { execute = false } = args;
@@ -246,6 +139,17 @@ mcp.post("/", async (c) => {
     }
 
     case "tools/call": {
+      // Session gate — tools/list stays public as discovery, but INVOCATION
+      // requires a signed-in operator. Fail closed when the session store
+      // is unavailable: no SESSIONS binding means no one to trust.
+      // (JSON-RPC error shape, HTTP 401.)
+      const caller = c.env.SESSIONS
+        ? await getSessionUser(c.env as { SESSIONS: KVNamespace }, c.req.raw)
+        : null;
+      if (!caller) {
+        return c.json(rpcError(id, -32000, "Unauthorized: sign in at clawdyclaw.com to call tools"), 401);
+      }
+
       const params2 = (params ?? {}) as { name?: string; arguments?: Record<string, unknown> };
       const tool = TOOLS.find((t) => t.name === params2.name);
       if (!tool) return c.json(rpcError(id, -32602, `Unknown tool: ${params2.name}`));
@@ -277,7 +181,7 @@ mcp.post("/", async (c) => {
           const result = await execute(tool.name, args, {
             DB: c.env.DB,
             VAULT_CIPHER_KEY: undefined,
-            operator: { sub: "anonymous", email: null },
+            operator: caller,
           } as unknown as Parameters<typeof execute>[2]);
           return c.json(rpcResult(id, result.output));
         }

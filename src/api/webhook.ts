@@ -10,9 +10,11 @@ import { Hono } from "hono";
 import { classify, generateTaskId } from "./proxy-bridge";
 import { createTask, type NewTask } from "../db/tasks";
 import { migrate } from "../db/schema";
+import { webhookSecretValid } from "../lib/require-auth";
 
 export interface WebhookEnv {
   DB: D1Database;
+  WEBHOOK_SECRET?: string;
 }
 
 const webhook = new Hono<{ Bindings: WebhookEnv }>();
@@ -27,6 +29,12 @@ async function ensureSchema(db: D1Database) {
 }
 
 webhook.post("/ingress", async (c) => {
+  // Shared-secret gate — task injection must come from a holder of
+  // WEBHOOK_SECRET (sent as X-Webhook-Secret). Until the secret is set in
+  // the dashboard the check is skipped with a warn (see require-auth.ts).
+  if (!webhookSecretValid(c.env, "WEBHOOK_SECRET", c.req.raw)) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
   await ensureSchema(c.env.DB);
 
   let body: Record<string, unknown>;

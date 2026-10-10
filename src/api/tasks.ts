@@ -12,7 +12,7 @@ import {
   recordApproval,
 } from "../db/tasks";
 import { execute, type ExecutorContext } from "./executor";
-import { getSessionUser, sessionUserOrDefault } from "../lib/session";
+import { requireSession, authedUser } from "../lib/require-auth";
 
 export interface TaskEnv {
   DB: D1Database;
@@ -24,8 +24,9 @@ export interface TaskEnv {
 
 const tasks = new Hono<{ Bindings: TaskEnv }>();
 
-// List tasks (filterable by status, source)
-tasks.get("/", async (c) => {
+// List tasks (filterable by status, source) — signed-in operators only.
+// Queue contents are sensitive: task payloads carry client contact details.
+tasks.get("/", requireSession, async (c) => {
   const status = c.req.query("status") ?? undefined;
   const source = c.req.query("source") ?? undefined;
   const limit = Number(c.req.query("limit") ?? "50");
@@ -35,15 +36,17 @@ tasks.get("/", async (c) => {
   return c.json({ tasks: results, count: results.length });
 });
 
-// Get single task
-tasks.get("/:id", async (c) => {
+// Get single task — signed-in operators only.
+tasks.get("/:id", requireSession, async (c) => {
   const task = await getTask(c.env.DB, c.req.param("id"));
   if (!task) return c.json({ error: "Task not found" }, 404);
   return c.json(task);
 });
 
-// Approve a task
-tasks.post("/:id/approve", async (c) => {
+// Approve a task — the operator is the SIGNED-IN user, never the request
+// body. (Previously `body.operator ?? "anonymous"` let anyone with curl
+// approve HITL tasks as anyone.)
+tasks.post("/:id/approve", requireSession, async (c) => {
   const id = c.req.param("id");
   const task = await getTask(c.env.DB, id);
   if (!task) return c.json({ error: "Task not found" }, 404);
@@ -51,10 +54,10 @@ tasks.post("/:id/approve", async (c) => {
     return c.json({ error: `Task is already ${task.status}` }, 409);
   }
 
-  let body: { operator?: string; note?: string } = {};
+  let body: { note?: string } = {};
   try { body = await c.req.json(); } catch { /* empty */ }
 
-  const operator = body.operator ?? "anonymous";
+  const operator = authedUser(c).sub;
   const note = body.note ?? undefined;
 
   await recordApproval(c.env.DB, id, operator, "approved", note);
@@ -62,8 +65,8 @@ tasks.post("/:id/approve", async (c) => {
   return c.json({ task: updated, decision: "approved" });
 });
 
-// Reject a task
-tasks.post("/:id/reject", async (c) => {
+// Reject a task — same rule: the operator is the signed-in user.
+tasks.post("/:id/reject", requireSession, async (c) => {
   const id = c.req.param("id");
   const task = await getTask(c.env.DB, id);
   if (!task) return c.json({ error: "Task not found" }, 404);
@@ -71,10 +74,10 @@ tasks.post("/:id/reject", async (c) => {
     return c.json({ error: `Task is already ${task.status}` }, 409);
   }
 
-  let body: { operator?: string; note?: string } = {};
+  let body: { note?: string } = {};
   try { body = await c.req.json(); } catch { /* empty */ }
 
-  const operator = body.operator ?? "anonymous";
+  const operator = authedUser(c).sub;
   const note = body.note ?? undefined;
 
   await recordApproval(c.env.DB, id, operator, "rejected", note);
@@ -82,8 +85,10 @@ tasks.post("/:id/reject", async (c) => {
   return c.json({ task: updated, decision: "rejected" });
 });
 
-// Mark task as executed (after HITL approval triggers downstream action)
-tasks.post("/:id/execute", async (c) => {
+// Mark task as executed (after HITL approval triggers downstream action).
+// Execution must never run as anonymous — the approving operator's vault
+// tokens drive the downstream call.
+tasks.post("/:id/execute", requireSession, async (c) => {
   const id = c.req.param("id");
   const task = await getTask(c.env.DB, id);
   if (!task) return c.json({ error: "Task not found" }, 404);
@@ -99,7 +104,7 @@ tasks.post("/:id/execute", async (c) => {
   const args = ((payload.args as Record<string, unknown>) ?? {});
 
   // Resolve the approving operator so their vault tokens drive the call.
-  const operator = sessionUserOrDefault(await getSessionUser(c.env, c.req.raw));
+  const operator = authedUser(c);
   const result = await execute(tool, args, { ...(c.env as unknown as object), operator } as unknown as ExecutorContext);
 
   await updateTaskStatus(c.env.DB, id, "executed");
