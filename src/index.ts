@@ -236,4 +236,16 @@ export default {
     await ensureDB(env.DB);
     return app.fetch(request, env, ctx);
   },
+  /**
+   * Scheduled (cron) handler — configure the cadence in the dashboard
+   * (Worker > Triggers > Cron Triggers), e.g. every 15 minutes.
+   * Turns due follow-ups into HITL approval tasks. Nothing auto-sends:
+   * every follow-up still needs a human approval before execute().
+   */
+  async scheduled(_event: ScheduledEvent, env: ClawdyEnv, _ctx: ExecutionContext): Promise<void> {
+    await ensureDB(env.DB);
+    const { processDueFollowUps } = await import("./api/outreach");
+    const { checked, queued } = await processDueFollowUps(env.DB);
+    console.log(`[cron] follow-ups checked=${checked} queued=${queued}`);
+  },
 };

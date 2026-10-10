@@ -271,6 +271,19 @@ CREATE TABLE IF NOT EXISTS inference_usage (
 );
 
 CREATE INDEX IF NOT EXISTS idx_inference_usage_operator ON inference_usage(operator_sub, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS follow_ups (
+  id         TEXT PRIMARY KEY,
+  owner_sub  TEXT NOT NULL,
+  contact    TEXT,
+  channel    TEXT NOT NULL DEFAULT 'email',
+  due_at     INTEGER NOT NULL,
+  payload    TEXT,
+  status     TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'queued', 'sent', 'cancelled')),
+  created_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS idx_follow_ups_due ON follow_ups(status, due_at);
 `;
 
 export async function migrate(db: D1Database): Promise<void> {

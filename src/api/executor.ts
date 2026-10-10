@@ -9,6 +9,20 @@
 
 import { getToken, decryptSecret, type VaultEnv } from "../db/vault";
 import { infer, type InferContext } from "./infer";
+import {
+  gmailSend,
+  draftOutreachEmail,
+  draftReplyEmail,
+  draftFollowUpEmail,
+  runApifyScrape,
+  scheduleFollowUp,
+  type OutreachContext,
+} from "./outreach";
+
+/** Adapt the executor context for the outreach module. */
+function outreachCtx(ctx: ExecutorContext): OutreachContext {
+  return ctx as unknown as OutreachContext;
+}
 
 export interface ExecutionResult {
   ok: boolean;
@@ -40,73 +54,34 @@ export async function execute(
 ): Promise<ExecutionResult> {
   switch (tool) {
     case "draft_personalized_outreach": {
-      return {
-        ok: true,
-        output: {
-          status: "draft_ready",
-          contact: args.contact ?? null,
-          intent: args.intent ?? null,
-          note: "Personalized outreach drafted — final send is HITL-intercepted via send_email",
-        },
-      };
+      return draftOutreachEmail(outreachCtx(ctx), args);
     }
 
     case "send_email": {
-      const token = await providerToken(ctx, "google");
-      if (!token) {
-        return {
-          ok: false,
-          output: {
-            error: "GMAIL_TOKEN_REQUIRED",
-            message: "No connected Gmail. Connect Google in the Studio Vault (OAuth), then retry.",
-          },
-        };
-      }
-
-      // Create a draft via Gmail API (never sends without a second HITL send).
-      const message = makeMime(args.to as string, args.subject as string, args.body as string);
-      const url = "https://gmail.googleapis.com/gmail/v1/users/me/messages?alt=json";
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token.access_token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          raw: btoa(message).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""),
-        }),
-      });
-
-      if (!res.ok) {
-        return {
-          ok: false,
-          output: { error: "GMAIL_API_ERROR", status: res.status, detail: await res.text().catch(() => "") },
-        };
-      }
-      const data = (await res.json()) as { id?: string; threadId?: string };
-      return { ok: true, output: { sent: true, gmail_message_id: data.id, thread_id: data.threadId, to: args.to } };
+      // Real Gmail send. HITL approval happened upstream (MCP interception
+      // or task approval) — by the time this runs, a human has said yes.
+      return gmailSend(
+        outreachCtx(ctx),
+        args.to as string,
+        args.subject as string,
+        args.body as string
+      );
     }
 
     case "draft_reply": {
-      return {
-        ok: true,
-        output: { status: "drafted", thread_id: args.thread_id, body: args.draft_body },
-      };
+      return draftReplyEmail(outreachCtx(ctx), args);
+    }
+
+    case "draft_follow_up": {
+      return draftFollowUpEmail(outreachCtx(ctx), args);
+    }
+
+    case "schedule_follow_up": {
+      return scheduleFollowUp(outreachCtx(ctx), args);
     }
 
     case "run_scraper": {
-      const token = await providerToken(ctx, "apify");
-      return {
-        ok: true,
-        output: {
-          status: token ? "dispatched" : "pending_credentials",
-          target: args.target,
-          query: args.query,
-          note: token
-            ? "Apify run dispatched (actor id from vault)"
-            : "Connect Apify key in the Studio Vault to dispatch real runs",
-        },
-      };
+      return runApifyScrape(outreachCtx(ctx), args);
     }
 
     case "llm_infer": {
@@ -158,15 +133,4 @@ async function handleInfer(
 ): Promise<ExecutionResult> {
   const result = await infer(provider, args as { model?: string; prompt?: string; image_prompt?: string }, ctx as unknown as InferContext);
   return { ok: result.ok, output: result };
-}
-
-function makeMime(to: string, subject: string, body: string): string {
-  const headers = [
-    `To: ${to}`,
-    "From: ClawdyClaw Agent",
-    `Subject: ${subject}`,
-    "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=UTF-8",
-  ];
-  return `${headers.join("\r\n")}\r\n\r\n${body}`;
 }

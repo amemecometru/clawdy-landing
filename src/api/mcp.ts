@@ -12,11 +12,11 @@
  * "approved") can the task be executed through /api/v1/tasks/:id/execute.
  */
 
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { classify, generateTaskId } from "./proxy-bridge";
 import { createTask, listTasks } from "../db/tasks";
 import { execute } from "./executor";
-import { getSessionUser } from "../lib/session";
+import { getSessionUser, type SessionUser } from "../lib/session";
 import { TOOL_DEFS, READ_ONLY_TOOLS, type ToolDef } from "./tools";
 
 export interface McpEnv {
@@ -59,6 +59,23 @@ function rpcResult(id: unknown, result: unknown) {
     id,
     result: { content: [{ type: "text", text: typeof result === "string" ? result : JSON.stringify(result) }] },
   };
+}
+
+/**
+ * Build the executor context for an MCP caller — passes through the
+ * platform bindings (vault cipher key, Cloudflare account/token) so
+ * vault decryption and the platform model fallback work over MCP.
+ * The operator is always the signed-in caller (tools/call is session-gated).
+ */
+function execCtx(c: Context<{ Bindings: McpEnv }>, caller: SessionUser) {
+  const env = c.env as unknown as Record<string, unknown>;
+  return {
+    DB: c.env.DB,
+    VAULT_CIPHER_KEY: env.VAULT_CIPHER_KEY as string | undefined,
+    CF_ACCOUNT_ID: env.CF_ACCOUNT_ID as string | undefined,
+    CLOUDFLARE_API_TOKEN: env.CLOUDFLARE_API_TOKEN as string | undefined,
+    operator: caller,
+  } as unknown as Parameters<typeof execute>[2];
 }
 
 function rpcError(id: unknown, code: number, message: string) {
@@ -172,21 +189,21 @@ mcp.post("/", async (c) => {
           return c.json(rpcResult(id, classify(args)));
         case "search_threads":
           return c.json(rpcResult(id, { ok: true, message: "inbox search requires Gmail access token (not yet provisioned)", query: args.query }));
-        case "run_scraper":
-          return c.json(rpcResult(id, { ok: true, message: "scrape dispatched to stress-test tier (Awaiting counter config)" }));
         case "model_infer":
         case "hf_infer":
         case "cloudflare_ai":
-        case "flux_image": {
-          const result = await execute(tool.name, args, {
-            DB: c.env.DB,
-            VAULT_CIPHER_KEY: undefined,
-            operator: caller,
-          } as unknown as Parameters<typeof execute>[2]);
+        case "flux_image":
+        default: {
+          // Any other registered (non-intercepted) tool routes through the
+          // executor — new executor tools work over MCP with no code change
+          // here. Tools with no executor surface as -32601.
+          const result = await execute(tool.name, args, execCtx(c, caller));
+          const out = result.output as { error?: string } | null;
+          if (!result.ok && out && typeof out === "object" && out.error === "UNKNOWN_TOOL") {
+            return c.json(rpcError(id, -32601, `Tool ${tool.name} has no executor`));
+          }
           return c.json(rpcResult(id, result.output));
         }
-        default:
-          return c.json(rpcError(id, -32601, `Tool ${tool.name} has no executor`));
       }
     }
 

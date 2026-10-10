@@ -14,6 +14,7 @@
 
 import { Hono, type Context } from "hono";
 import { getSessionUser, type SessionUser } from "../lib/session";
+import { gmailSend, type OutreachContext } from "./outreach";
 import { ensureSessionIdentity, sessionIdentityExists } from "../db/sessions";
 import {
   boundedInteger,
@@ -48,6 +49,7 @@ import {
 export interface CampaignEnv {
   DB: D1Database;
   SESSIONS: KVNamespace;
+  VAULT_CIPHER_KEY?: string;
 }
 
 type CampaignApp = Hono<{ Bindings: CampaignEnv; Variables: { owner: SessionUser } }>;
@@ -351,21 +353,45 @@ campaigns.post("/:id/message/:messageId/send_dry_run", async (c) => {
 });
 
 const sendMessage = async (c: CampaignContext): Promise<Response> => {
-  const owner = c.get("owner").sub;
+  const owner = c.get("owner");
   const messageId = c.req.param("messageId") ?? "";
-  const message = await getOwnedCampaignMessage(c.env.DB, messageId, owner);
+  const message = await getOwnedCampaignMessage(c.env.DB, messageId, owner.sub);
   if (!message) return c.json({ error: "Message not found" }, 404);
   if (message.status !== "approved") {
     return c.json({ error: `Message must be approved before sending (current: ${message.status})` }, 409);
   }
+  if (!message.subject || !message.body) {
+    return c.json({ error: "Message has no subject/body to send" }, 422);
+  }
+  const lead = await getCampaignLead(c.env.DB, message.campaign_lead_id, owner.sub);
+  const to = lead?.email;
+  if (!to) return c.json({ error: "Lead has no email address" }, 422);
+
+  // Real Gmail send — the message was human-approved, so this is the HITL
+  // green light. Owner's Google token comes from the vault.
+  const ctx: OutreachContext = {
+    DB: c.env.DB,
+    VAULT_CIPHER_KEY: c.env.VAULT_CIPHER_KEY,
+    operator: { sub: owner.sub, email: owner.email ?? null },
+  };
+  const result = await gmailSend(ctx, to, message.subject, message.body);
+  if (!result.ok) {
+    return c.json({ error: "Send failed", detail: result.output }, 502);
+  }
+  const out = result.output as { gmail_message_id?: string };
   const sent = await markCampaignMessageSent(
     c.env.DB,
     messageId,
-    owner,
-    JSON.stringify({ simulated: true, provider: "none", queued_at: nowSeconds() }),
-    `simulated-${messageId}`
+    owner.sub,
+    JSON.stringify({
+      simulated: false,
+      provider: "gmail",
+      gmail_message_id: out.gmail_message_id ?? null,
+      sent_at: nowSeconds(),
+    }),
+    out.gmail_message_id ?? null
   );
-  return c.json({ message: sent, simulated: true });
+  return c.json({ message: sent, simulated: false });
 };
 
 campaigns.post("/:id/message/:messageId/send", sendMessage);
