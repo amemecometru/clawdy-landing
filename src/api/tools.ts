@@ -62,6 +62,8 @@ export interface ToolDef {
   /** Vault provider key required ("none" = no credential, "platform" = operator's own infra). */
   providerBinding: string;
   costTier: ToolCostTier;
+  /** x402 price per call in USD, 6 decimal places. */
+  x402_price_usd: number;
   inputSchema: InputSchema;
 }
 
@@ -77,6 +79,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "live",
     providerBinding: "none",
     costTier: "free",
+    x402_price_usd: 0.001000,
     inputSchema: {
       type: "object",
       properties: { status: { type: "string", description: "pending | approved | rejected | executed" } },
@@ -92,6 +95,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "live",
     providerBinding: "none",
     costTier: "free",
+    x402_price_usd: 0.005000,
     inputSchema: {
       type: "object",
       properties: {
@@ -113,6 +117,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "live",
     providerBinding: "google",
     costTier: "free",
+    x402_price_usd: 0.250000,
     inputSchema: {
       type: "object",
       properties: {
@@ -134,6 +139,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "live",
     providerBinding: "google",
     costTier: "free",
+    x402_price_usd: 0.050000,
     inputSchema: {
       type: "object",
       properties: {
@@ -158,6 +164,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "live",
     providerBinding: "none",
     costTier: "cheap",
+    x402_price_usd: 0.250000,
     inputSchema: {
       type: "object",
       properties: {
@@ -190,6 +197,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "live",
     providerBinding: "none",
     costTier: "cheap",
+    x402_price_usd: 0.250000,
     inputSchema: {
       type: "object",
       properties: {
@@ -213,6 +221,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "live",
     providerBinding: "none",
     costTier: "free",
+    x402_price_usd: 0.250000,
     inputSchema: {
       type: "object",
       properties: {
@@ -236,6 +245,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "stub",
     providerBinding: "google",
     costTier: "free",
+    x402_price_usd: 0.010000,
     inputSchema: {
       type: "object",
       properties: { query: { type: "string" } },
@@ -251,6 +261,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "twilio",
     costTier: "cheap",
+    x402_price_usd: 0.250000,
     inputSchema: {
       type: "object",
       properties: {
@@ -269,6 +280,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "social",
     costTier: "free",
+    x402_price_usd: 0.100000,
     inputSchema: {
       type: "object",
       properties: {
@@ -288,6 +300,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "social",
     costTier: "free",
+    x402_price_usd: 0.100000,
     inputSchema: {
       type: "object",
       properties: {
@@ -310,6 +323,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "live",
     providerBinding: "apify",
     costTier: "cheap",
+    x402_price_usd: 0.500000,
     inputSchema: {
       type: "object",
       properties: {
@@ -333,6 +347,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "tavily",
     costTier: "cheap",
+    x402_price_usd: 0.020000,
     inputSchema: {
       type: "object",
       properties: {
@@ -351,6 +366,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "none",
     costTier: "free",
+    x402_price_usd: 0.010000,
     inputSchema: {
       type: "object",
       properties: { url: { type: "string" } },
@@ -366,6 +382,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "tavily",
     costTier: "cheap",
+    x402_price_usd: 0.250000,
     inputSchema: {
       type: "object",
       properties: {
@@ -387,6 +404,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "live",
     providerBinding: "any-model",
     costTier: "cheap",
+    x402_price_usd: 0.050000,
     inputSchema: {
       type: "object",
       properties: {
@@ -407,6 +425,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "live",
     providerBinding: "huggingface",
     costTier: "free",
+    x402_price_usd: 0.020000,
     inputSchema: {
       type: "object",
       properties: {
@@ -426,6 +445,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "live",
     providerBinding: "platform",
     costTier: "cheap",
+    x402_price_usd: 0.020000,
     inputSchema: {
       type: "object",
       properties: {
@@ -444,6 +464,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "elevenlabs",
     costTier: "standard",
+    x402_price_usd: 0.100000,
     inputSchema: {
       type: "object",
       properties: {
@@ -462,6 +483,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "groq",
     costTier: "cheap",
+    x402_price_usd: 0.050000,
     inputSchema: {
       type: "object",
       properties: { audio_url: { type: "string" } },
@@ -477,6 +499,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "any-model",
     costTier: "cheap",
+    x402_price_usd: 0.050000,
     inputSchema: {
       type: "object",
       properties: {
@@ -498,6 +521,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "live",
     providerBinding: "platform",
     costTier: "cheap",
+    x402_price_usd: 0.050000,
     inputSchema: {
       type: "object",
       properties: { prompt: { type: "string", description: "image prompt" } },
@@ -513,6 +537,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "replicate",
     costTier: "premium",
+    x402_price_usd: 1.000000,
     inputSchema: {
       type: "object",
       properties: {
@@ -531,6 +556,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "platform",
     costTier: "cheap",
+    x402_price_usd: 0.080000,
     inputSchema: {
       type: "object",
       properties: {
@@ -551,6 +577,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "none",
     costTier: "free",
+    x402_price_usd: 0.050000,
     inputSchema: {
       type: "object",
       properties: {
@@ -570,6 +597,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "platform",
     costTier: "free",
+    x402_price_usd: 0.250000,
     inputSchema: {
       type: "object",
       properties: {
@@ -588,6 +616,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "platform",
     costTier: "free",
+    x402_price_usd: 0.100000,
     inputSchema: {
       type: "object",
       properties: {
@@ -607,6 +636,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "platform",
     costTier: "free",
+    x402_price_usd: 0.020000,
     inputSchema: {
       type: "object",
       properties: {
@@ -627,6 +657,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "stripe",
     costTier: "standard",
+    x402_price_usd: 0.250000,
     inputSchema: {
       type: "object",
       properties: {
@@ -646,6 +677,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "stripe",
     costTier: "free",
+    x402_price_usd: 0.010000,
     inputSchema: {
       type: "object",
       properties: { payment_id: { type: "string" } },
@@ -661,6 +693,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "stripe",
     costTier: "standard",
+    x402_price_usd: 0.500000,
     inputSchema: {
       type: "object",
       properties: {
@@ -682,6 +715,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "platform",
     costTier: "cheap",
+    x402_price_usd: 0.010000,
     inputSchema: {
       type: "object",
       properties: {
@@ -700,6 +734,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "platform",
     costTier: "free",
+    x402_price_usd: 0.020000,
     inputSchema: {
       type: "object",
       properties: {
@@ -718,6 +753,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "google",
     costTier: "free",
+    x402_price_usd: 0.010000,
     inputSchema: {
       type: "object",
       properties: {
@@ -736,6 +772,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "hubspot",
     costTier: "standard",
+    x402_price_usd: 0.100000,
     inputSchema: {
       type: "object",
       properties: {
