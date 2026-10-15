@@ -347,7 +347,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "tavily",
     costTier: "cheap",
-    x402_price_usd: 0.020000,
+    x402_price_usd: 0.006000,
     inputSchema: {
       type: "object",
       properties: {

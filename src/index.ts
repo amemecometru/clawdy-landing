@@ -29,6 +29,7 @@ import feeds from "./api/feeds";
 import models from "./api/models";
 import tools from "./api/tools";
 import professionals from "./api/professionals";
+import professionalsPayment from "./api/professionals-payment";
 import campaigns from "./api/campaigns";
 import qualify from "./api/qualify";
 import { migrate } from "./db/schema";
@@ -47,6 +48,35 @@ export interface ClawdyEnv {
   CF_ACCOUNT_ID?: string;
   /** Encrypted Worker secret (dashboard Settings > Variables). Never in repo. */
   CLOUDFLARE_API_TOKEN?: string;
+  /** x402 settlement recipient — the only source of `payTo`. */
+  X402_PAY_TO_ADDRESS?: string;
+  /** Facilitator base URL (defaults to the public testnet facilitator). */
+  X402_FACILITATOR_URL?: string;
+  /** "base-sepolia" (default) or "base". */
+  X402_NETWORK?: string;
+  /** Exactly "true" selects mainnet settlement. */
+  X402_MAINNET?: string;
+  /** Exactly "true" disables the payment gate (local testing only). */
+  X402_DEV_BYPASS?: string;
+  /** Per-request facilitator timeout in milliseconds. */
+  X402_FACILITATOR_TIMEOUT_MS?: string;
+  /** JWKS endpoint for Monetization Gateway PAYMENT-CONTEXT JWTs. */
+  X402_PAYMENT_CONTEXT_JWKS_URL?: string;
+  /** Expected PAYMENT-CONTEXT issuer. */
+  X402_PAYMENT_CONTEXT_ISSUER?: string;
+  /** Expected PAYMENT-CONTEXT audience. */
+  X402_PAYMENT_CONTEXT_AUDIENCE?: string;
+  /** KV namespace holding paid-call idempotency records. */
+  X402_IDEMPOTENCY?: KVNamespace;
+  /** Base RPC for reading crypto payment receipts (workflow payment). */
+  BASE_RPC_URL?: string;
+  /** Stripe secret + webhook signing secret (workflow payment). */
+  STRIPE_SECRET_KEY?: string;
+  STRIPE_WEBHOOK_SECRET?: string;
+  /** Signs digital receipts; falls back to AUTH_SECRET. */
+  RECEIPT_SIGNING_SECRET?: string;
+  /** Origin Stripe redirects back to after checkout. */
+  PUBLIC_ORIGIN?: string;
 }
 
 // ── Root app ──────────────────────────────────────────────────────────────────
@@ -100,6 +130,12 @@ app.route("/api/v1", tools);
 // ── Professional Personal Brand Sites ────────────────────────────────────────
 
 app.route("/api/v1/professionals", professionals);
+
+// ── Professionals workflow payment (one-time tier purchase) ───────────────────
+// Mounted under the professionals prefix so a paid checkout sits next to the
+// workflow it unlocks.
+
+app.route("/api/v1/professionals/payment", professionalsPayment);
 
 // ── Outreach campaigns (HITL-gated 3-step sequence) ───────────────────────────
 
