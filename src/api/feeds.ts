@@ -18,7 +18,7 @@
 
 import { Hono } from "hono";
 import { getSessionUser, sessionUserOrDefault } from "../lib/session";
-import { webhookSecretValid } from "../lib/require-auth";
+import { webhookSecretValid, requireSession, authedUser } from "../lib/require-auth";
 import {
   FEED_PLATFORMS,
   feedSourceUrl,

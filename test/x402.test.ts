@@ -40,7 +40,7 @@ const explodingDB = new Proxy(
 
 const PAY_TO = "0x1111111111111111111111111111111111111111";
 const SESSION_COOKIE = "clawdyclaw.session=good";
-const PRICED_TOOL = "cloudflare_ai"; // $0.02 → 20000 atomic units
+const PRICED_TOOL = "cloudflare_ai"; // $0.01 → 10000 atomic units
 
 function baseEnv(overrides: Record<string, unknown> = {}) {
   return { DB: explodingDB, X402_PAY_TO_ADDRESS: PAY_TO, ...overrides };
@@ -119,12 +119,12 @@ describe("toAtomicUnits", () => {
 describe("priceUsd", () => {
   it("matches the locked table", () => {
     expect(TOOL_DEFS).toHaveLength(35);
-    expect(priceUsd("list_tasks")).toBe(0.001);
-    expect(priceUsd("classify_intent")).toBe(0.005);
-    expect(priceUsd("web_search")).toBe(0.006);
+    expect(priceUsd("list_tasks")).toBe(0.01);
+    expect(priceUsd("classify_intent")).toBe(0.01);
+    expect(priceUsd("web_search")).toBe(0.01);
     expect(priceUsd("run_scraper")).toBe(0.5);
     expect(priceUsd("create_invoice")).toBe(0.5);
-    expect(priceUsd("generate_video")).toBe(1);
+    expect(priceUsd("generate_video")).toBe(3);
   });
 
   it("agrees with the registry for every tool", () => {
@@ -305,7 +305,7 @@ describe("mcp x402 payment gate", () => {
       accepts: { amount: string; payTo: string; asset: string }[];
     };
     expect(body.x402Version).toBe(2);
-    expect(body.accepts[0].amount).toBe("20000");
+    expect(body.accepts[0].amount).toBe("10000");
     expect(body.accepts[0].payTo).toBe(PAY_TO);
     expect(body.accepts[0].asset).toMatch(/^0x[0-9a-fA-F]{40}$/);
     expect(body.resource.url).toBe("http://clawdyclaw.com/mcp/v1");
@@ -316,7 +316,7 @@ describe("mcp x402 payment gate", () => {
     const header = res.headers.get("PAYMENT-REQUIRED");
     expect(header).toBeTruthy();
     const decoded = JSON.parse(atob(header as string)) as { accepts: { amount: string }[] };
-    expect(decoded.accepts[0].amount).toBe("20000");
+    expect(decoded.accepts[0].amount).toBe("10000");
   });
 
   it("answers 503 when the rail has no recipient configured", async () => {
@@ -330,10 +330,10 @@ describe("mcp x402 payment gate", () => {
   it("quotes the atomic amount of each tool's locked price", async () => {
     const e = await authedEnv();
     const expectations: [string, string][] = [
-      ["list_tasks", "1000"],
-      ["classify_intent", "5000"],
+      ["list_tasks", "10000"],
+      ["classify_intent", "10000"],
       ["model_infer", "50000"],
-      ["flux_image", "50000"],
+      ["flux_image", "10000"],
       ["run_scraper", "500000"],
     ];
     for (const [tool, atomic] of expectations) {

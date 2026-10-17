@@ -41,9 +41,18 @@ export type ToolCategory =
 export type ToolStatus = "live" | "stub" | "planned";
 export type ToolCostTier = "free" | "cheap" | "standard" | "premium";
 
+export interface JsonSchemaNode {
+  type: string;
+  description?: string;
+  items?: JsonSchemaNode;
+  properties?: Record<string, JsonSchemaNode>;
+  required?: string[];
+  default?: unknown;
+}
+
 export interface InputSchema {
   type: "object";
-  properties: Record<string, { type: string; description?: string }>;
+  properties: Record<string, JsonSchemaNode>;
   required?: string[];
 }
 
@@ -79,7 +88,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "live",
     providerBinding: "none",
     costTier: "free",
-    x402_price_usd: 0.001000,
+    x402_price_usd: 0.010000,
     inputSchema: {
       type: "object",
       properties: { status: { type: "string", description: "pending | approved | rejected | executed" } },
@@ -95,7 +104,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "live",
     providerBinding: "none",
     costTier: "free",
-    x402_price_usd: 0.005000,
+    x402_price_usd: 0.010000,
     inputSchema: {
       type: "object",
       properties: {
@@ -111,7 +120,7 @@ export const TOOL_DEFS: ToolDef[] = [
     name: "send_email",
     mcpName: "send_email",
     category: "communication",
-    description: "Send a personalized outreach email. Requires human approval.",
+    description: "Send a personalized outreach email. Requires human approval. Gmail's send API is free — the fee buys the HITL gate, thread tracking and delivery receipting.",
     useCase: "Outbound sales and follow-up at agent scale — the revenue workhorse.",
     intercepted: true,
     status: "live",
@@ -158,7 +167,7 @@ export const TOOL_DEFS: ToolDef[] = [
     name: "draft_personalized_outreach",
     mcpName: "draft_personalized_outreach",
     category: "communication",
-    description: "Draft a personalized cold-outreach email with an LLM. Requires human approval to send.",
+    description: "Draft a personalized cold-outreach email with an LLM. Requires human approval to send. The fee buys orchestration — lead merge, personalization, approval queue and audit trail — not the token cost.",
     useCase: "Outbound sales at agent scale — personalized first-touch emails drafted per lead.",
     intercepted: true,
     status: "live",
@@ -191,7 +200,7 @@ export const TOOL_DEFS: ToolDef[] = [
     name: "draft_follow_up",
     mcpName: "draft_follow_up",
     category: "communication",
-    description: "Draft a follow-up email for a previous outreach. Requires human approval to send.",
+    description: "Draft a follow-up email for a previous outreach. Requires human approval to send. The fee buys the scheduling chain and approval queue, not the token cost.",
     useCase: "Never let a warm lead go cold — follow-ups drafted on schedule, you approve the send.",
     intercepted: true,
     status: "live",
@@ -215,7 +224,7 @@ export const TOOL_DEFS: ToolDef[] = [
     name: "schedule_follow_up",
     mcpName: "schedule_follow_up",
     category: "communication",
-    description: "Schedule a follow-up reminder. Due follow-ups become HITL approval tasks — nothing auto-sends.",
+    description: "Schedule a follow-up reminder. Due follow-ups become HITL approval tasks — nothing auto-sends. Pure orchestration: persistence, due-date scheduling and the approval queue consume no vendor credits.",
     useCase: "Set-and-forget follow-up cadence behind the HITL gate.",
     intercepted: false,
     status: "live",
@@ -255,7 +264,7 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "send_sms",
     category: "communication",
-    description: "Send an SMS via Twilio. Requires human approval.",
+    description: "Send an SMS via Twilio. Requires human approval. The fee covers the Twilio message plus delivery-status receipting and the HITL gate.",
     useCase: "Appointment reminders and OTP flows — the highest-ROI agent notification channel.",
     intercepted: true,
     status: "planned",
@@ -274,7 +283,7 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "post_social",
     category: "communication",
-    description: "Publish a post to a connected social account. Requires human approval.",
+    description: "Publish a post to a connected social account. Requires human approval. The fee covers account routing, the approval gate and post receipting.",
     useCase: "Agents that run content pipelines — write once, publish everywhere.",
     intercepted: true,
     status: "planned",
@@ -294,7 +303,7 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "schedule_post",
     category: "communication",
-    description: "Queue a social post for a future time. Requires human approval.",
+    description: "Queue a social post for a future time. Requires human approval. The fee covers the scheduling store, the approval queue and publish receipting.",
     useCase: "A week of content scheduled in one agent run — the social autopilot.",
     intercepted: true,
     status: "planned",
@@ -317,7 +326,7 @@ export const TOOL_DEFS: ToolDef[] = [
     name: "run_scraper",
     mcpName: "run_scraper",
     category: "research",
-    description: "Run an Apify actor and return structured results. Requires an Apify key in the vault.",
+    description: "Run an Apify actor and return structured results. Requires an Apify key in the vault. The fee covers actor compute (about 750 pages at Apify's Starter rate) plus normalization and result receipting.",
     useCase: "Lead lists on autopilot — scrape marketplaces into your pipeline nightly.",
     intercepted: false,
     status: "live",
@@ -347,7 +356,7 @@ export const TOOL_DEFS: ToolDef[] = [
     status: "planned",
     providerBinding: "tavily",
     costTier: "cheap",
-    x402_price_usd: 0.006000,
+    x402_price_usd: 0.010000,
     inputSchema: {
       type: "object",
       properties: {
@@ -376,7 +385,7 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "monitor_keywords",
     category: "research",
-    description: "Watch keywords across the web and enqueue hits as tasks. Read-only.",
+    description: "Watch keywords across the web and enqueue hits as tasks. Read-only. The fee covers the watch cycle and hit-to-task routing, not the search credits.",
     useCase: "Never miss a buying signal — competitor mentions and leads surface automatically.",
     intercepted: false,
     status: "planned",
@@ -439,13 +448,13 @@ export const TOOL_DEFS: ToolDef[] = [
     name: "cloudflare_ai",
     mcpName: "cloudflare_ai",
     category: "inference",
-    description: "Edge inference on the Cloudflare Workers AI backbone.",
+    description: "Edge inference on the Cloudflare Workers AI backbone. $0.01 per call.",
     useCase: "Zero-key edge brains billed to your own account — the 24/7 agent default.",
     intercepted: false,
     status: "live",
     providerBinding: "platform",
     costTier: "cheap",
-    x402_price_usd: 0.020000,
+    x402_price_usd: 0.010000,
     inputSchema: {
       type: "object",
       properties: {
@@ -458,7 +467,7 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "tts_speak",
     category: "inference",
-    description: "Text-to-speech via ElevenLabs. Returns audio.",
+    description: "Text-to-speech via ElevenLabs. Returns audio. The fee covers voice selection, synthesis and the returned asset receipt.",
     useCase: "Voice agents that close deals — phone calls, voicemails and audio content on demand.",
     intercepted: false,
     status: "planned",
@@ -477,13 +486,13 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "transcribe_audio",
     category: "inference",
-    description: "Speech-to-text for an audio URL or upload.",
+    description: "Speech-to-text for an audio URL or upload. $0.01 per minute, up to 60 minutes ($0.60 max).",
     useCase: "Turn calls, meetings and voicemails into structured agent input.",
     intercepted: false,
     status: "planned",
     providerBinding: "groq",
     costTier: "cheap",
-    x402_price_usd: 0.050000,
+    x402_price_usd: 0.600000,
     inputSchema: {
       type: "object",
       properties: { audio_url: { type: "string" } },
@@ -515,13 +524,13 @@ export const TOOL_DEFS: ToolDef[] = [
     name: "flux_image",
     mcpName: "flux_image",
     category: "creative",
-    description: "Generate an image via FLUX.1-schnell (Cloudflare Workers AI).",
+    description: "Generate an image via FLUX.1-schnell (Cloudflare Workers AI). $0.01 per image.",
     useCase: "Agent-generated creative — ad variants, thumbnails and product shots on demand.",
     intercepted: false,
     status: "live",
     providerBinding: "platform",
     costTier: "cheap",
-    x402_price_usd: 0.050000,
+    x402_price_usd: 0.010000,
     inputSchema: {
       type: "object",
       properties: { prompt: { type: "string", description: "image prompt" } },
@@ -531,13 +540,13 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "generate_video",
     category: "creative",
-    description: "Text-to-video generation. Requires human approval (compute cost).",
+    description: "Text-to-video generation. $0.10 per second, up to 30 seconds ($3.00 max). Requires human approval (compute cost).",
     useCase: "Agents that ship video ads and shorts without a production crew.",
     intercepted: true,
     status: "planned",
     providerBinding: "replicate",
     costTier: "premium",
-    x402_price_usd: 1.000000,
+    x402_price_usd: 3.000000,
     inputSchema: {
       type: "object",
       properties: {
@@ -591,7 +600,7 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "schedule_cron",
     category: "automation",
-    description: "Schedule a recurring agent run on a cron expression. Requires human approval.",
+    description: "Schedule a recurring agent run on a cron expression. Requires human approval. Pure orchestration — the schedule store and approval gate consume no vendor credits.",
     useCase: "Set-and-forget revenue loops — nightly lead scrapes, weekly reports, morning briefings.",
     intercepted: true,
     status: "planned",
@@ -651,7 +660,7 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "create_payment_link",
     category: "commerce",
-    description: "Create a Stripe Payment Link. Requires human approval.",
+    description: "Create a Stripe Payment Link. Requires human approval. The fee covers link construction, approval gating and payment receipting — the Stripe API call is free.",
     useCase: "Agents that collect money — quotes become payable links from a chat command.",
     intercepted: true,
     status: "planned",
@@ -687,7 +696,7 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "create_invoice",
     category: "commerce",
-    description: "Draft a Stripe invoice. Requires human approval to send.",
+    description: "Draft a Stripe invoice. Requires human approval to send. The fee covers invoice assembly, approval gating and sent-state receipting — the Stripe API call is free.",
     useCase: "B2B agent workflows — work completed Friday, invoice sent Monday, no human touched it.",
     intercepted: true,
     status: "planned",
@@ -766,7 +775,7 @@ export const TOOL_DEFS: ToolDef[] = [
   {
     name: "update_crm",
     category: "memory",
-    description: "Create or update a CRM contact/deal. Requires human approval.",
+    description: "Create or update a CRM contact/deal. Requires human approval. The fee covers field mapping, dedupe and sync-state receipting — the CRM API call is free.",
     useCase: "Pipeline hygiene on autopilot — every outreach logged, every reply tracked.",
     intercepted: true,
     status: "planned",

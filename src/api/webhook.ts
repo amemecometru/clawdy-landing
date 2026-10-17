@@ -32,7 +32,7 @@ webhook.post("/ingress", async (c) => {
   // Shared-secret gate — task injection must come from a holder of
   // WEBHOOK_SECRET (sent as X-Webhook-Secret). Until the secret is set in
   // the dashboard the check is skipped with a warn (see require-auth.ts).
-  if (!webhookSecretValid(c.env, "WEBHOOK_SECRET", c.req.raw)) {
+  if (!webhookSecretValid(c.env as unknown as Record<string, unknown>, "WEBHOOK_SECRET", c.req.raw)) {
     return c.json({ error: "Unauthorized" }, 401);
   }
   await ensureSchema(c.env.DB);

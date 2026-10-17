@@ -8,7 +8,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import mcp from "../src/api/mcp";
 import { x402Client, x402HTTPClient } from "@x402/core/client";
 import { registerExactEvmScheme } from "@x402/evm/exact/client";
-import { X402_TESTNET_FACILITATOR } from "../src/lib/x402";
+import { priceUsd, X402_DEFAULT_FACILITATOR } from "../src/lib/x402";
 
 const KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d" as const;
 const OTHER_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" as const;
@@ -17,6 +17,10 @@ const SESSION = "clawdyclaw.session=proof";
 const TRANSFER_TOPIC = "0x98de503528ee59b575ef0c0a2576a82497bfc029a5685b209e9ec333479b10a5";
 
 const rpcUrl = process.env.X402_RPC_URL ?? "https://sepolia.base.org";
+
+// Settlement facilitator under test. Defaults to PayAI; override to probe a
+// different facilitator. Every /verify call below goes to this host.
+const FACILITATOR = process.env.X402_FACILITATOR_URL ?? X402_DEFAULT_FACILITATOR;
 
 function env() {
   const map = new Map<string, string>([["session:proof", JSON.stringify({ sub: "proof" })]]);
@@ -28,7 +32,7 @@ function env() {
       delete: async () => {},
     } as unknown as KVNamespace,
     X402_PAY_TO_ADDRESS: PAY_TO,
-    X402_FACILITATOR_URL: X402_TESTNET_FACILITATOR,
+    X402_FACILITATOR_URL: FACILITATOR,
   };
 }
 
@@ -105,7 +109,7 @@ describe.skipIf(!process.env.X402_BUYER_PRIVATE_KEY)("verification proof", () =>
       console.log("sig   :", payload.payload.signature);
 
       line("3. FACILITATOR /verify — the honest payload");
-      const good = await postJson(`${X402_TESTNET_FACILITATOR}/verify`, {
+      const good = await postJson(`${FACILITATOR}/verify`, {
         x402Version: 2,
         paymentPayload: payload,
         paymentRequirements: required.accepts[0],
@@ -133,7 +137,7 @@ describe.skipIf(!process.env.X402_BUYER_PRIVATE_KEY)("verification proof", () =>
       for (const [label, mutate, reqs] of variants) {
         const bad = structuredClone(payload);
         mutate(bad);
-        const res = await postJson(`${X402_TESTNET_FACILITATOR}/verify`, {
+        const res = await postJson(`${FACILITATOR}/verify`, {
           x402Version: 2,
           paymentPayload: bad,
           paymentRequirements: reqs,
@@ -159,7 +163,7 @@ describe.skipIf(!process.env.X402_BUYER_PRIVATE_KEY)("verification proof", () =>
       console.log(
         "verify  →",
         JSON.stringify(
-          await postJson(`${X402_TESTNET_FACILITATOR}/verify`, {
+          await postJson(`${FACILITATOR}/verify`, {
             x402Version: 2,
             paymentPayload: stolen,
             paymentRequirements: required.accepts[0],
@@ -179,7 +183,7 @@ describe.skipIf(!process.env.X402_BUYER_PRIVATE_KEY)("verification proof", () =>
           new Request("http://clawdyclaw.com/", { headers: { "payment-signature": b64(payload) } }),
           {
             toolName: "classify_intent",
-            usd: 0.005,
+            usd: priceUsd("classify_intent") as number,
             env: envr,
             resource: "http://clawdyclaw.com/mcp/v1",
           }

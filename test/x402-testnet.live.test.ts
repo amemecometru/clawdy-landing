@@ -20,11 +20,11 @@ import { privateKeyToAccount } from "viem/accounts";
 import { createPublicClient, formatUnits, http } from "viem";
 import { baseSepolia } from "viem/chains";
 import mcp from "../src/api/mcp";
-import { withX402Client, X402_TESTNET_FACILITATOR } from "../src/lib/x402";
+import { withX402Client, X402_DEFAULT_FACILITATOR } from "../src/lib/x402";
 
 const BUYER_KEY = process.env.X402_BUYER_PRIVATE_KEY;
 const SELLER = process.env.X402_PAY_TO_ADDRESS ?? "0x1111111111111111111111111111111111111111";
-const FACILITATOR = process.env.X402_FACILITATOR_URL ?? X402_TESTNET_FACILITATOR;
+const FACILITATOR = process.env.X402_FACILITATOR_URL ?? X402_DEFAULT_FACILITATOR;
 const RPC_URL = process.env.X402_RPC_URL;
 const SESSION_COOKIE = "clawdyclaw.session=live";
 const USDC_SEPOLIA = "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as const;

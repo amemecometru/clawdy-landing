@@ -82,8 +82,15 @@ export const X402_NETWORKS = {
 /** Network name used when X402_NETWORK is unset. */
 export const X402_DEFAULT_NETWORK = "base-sepolia" as const;
 
-/** Public testnet facilitator used when X402_FACILITATOR_URL is unset. */
-export const X402_TESTNET_FACILITATOR = "https://x402.org/facilitator";
+/**
+ * Settlement facilitator used when X402_FACILITATOR_URL is unset.
+ *
+ * PayAI, not the public x402.org facilitator — the latter failed roughly one
+ * call in three. Supports base-sepolia (v1) and eip155:84532 (v2 exact),
+ * carries the bazaar extension, needs no API key, and is free on testnet.
+ * Override per-environment with the X402_FACILITATOR_URL secret.
+ */
+export const X402_DEFAULT_FACILITATOR = "https://facilitator.payai.network";
 
 /** USDC on Base mainnet (the Base Sepolia asset is in X402_NETWORKS). */
 export const X402_ASSET = X402_NETWORKS.base.asset;
@@ -224,7 +231,7 @@ export function resolveX402Config(env: X402Env): X402ConfigResult {
     return { ok: false, reason: "X402_FACILITATOR_TIMEOUT_MS must be a positive integer" };
   }
 
-  const facilitatorUrl = (env.X402_FACILITATOR_URL ?? X402_TESTNET_FACILITATOR).trim().replace(/\/+$/, "");
+  const facilitatorUrl = (env.X402_FACILITATOR_URL ?? X402_DEFAULT_FACILITATOR).trim().replace(/\/+$/, "");
 
   return {
     ok: true,

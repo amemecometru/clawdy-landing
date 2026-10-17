@@ -19,7 +19,7 @@ import { registerExactEvmScheme } from "@x402/evm/exact/client";
 import { privateKeyToAccount } from "viem/accounts";
 import mcp from "../src/api/mcp";
 import { PRICE_TABLE } from "../src/lib/price-table";
-import { X402_TESTNET_FACILITATOR, withX402Client } from "../src/lib/x402";
+import { withX402Client } from "../src/lib/x402";
 
 const LIVE_KEY = process.env.X402_BUYER_PRIVATE_KEY as `0x${string}` | undefined;
 const LIVE = Boolean(LIVE_KEY);
@@ -27,6 +27,14 @@ const LIVE = Boolean(LIVE_KEY);
 const TESTNET_BUYER_KEY =
   "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d" as `0x${string}`;
 const BUYER_KEY = LIVE_KEY ?? TESTNET_BUYER_KEY;
+
+// Settlement facilitator used when LIVE mode is on. The public x402.org
+// facilitator this harness originally pointed at failed roughly 1 call in 3, so
+// LIVE mode now targets PayAI instead. Override with X402_FACILITATOR_URL to
+// test any other facilitator. Testnet rail — supports base-sepolia (v1) and
+// eip155:84532 (v2 exact), carries the bazaar extension, no API key required.
+const LIVE_FACILITATOR =
+  process.env.X402_FACILITATOR_URL ?? "https://facilitator.payai.network";
 
 const SELLER = "0x1111111111111111111111111111111111111111";
 const SESSION_COOKIE = "clawdyclaw.session=agent";
@@ -199,7 +207,7 @@ describe("third-party discovery", () => {
     "rebuilds the whole catalogue from the Bazaar extensions alone",
     { timeout: 60_000 },
     async () => {
-      const facilitator = LIVE ? X402_TESTNET_FACILITATOR : localUrl;
+      const facilitator = LIVE ? LIVE_FACILITATOR : localUrl;
       const env = sellerEnv(facilitator);
 
       // The agent's only prior knowledge: the origin. It reads the Bazaar
@@ -336,7 +344,7 @@ describe("third-party transaction", () => {
     "discovers, pays, settles and replays without a second charge",
     { timeout: 60_000 },
     async () => {
-      const facilitator = LIVE ? X402_TESTNET_FACILITATOR : localUrl;
+      const facilitator = LIVE ? LIVE_FACILITATOR : localUrl;
       const env = sellerEnv(facilitator);
       const body = toolCall("classify_intent", { intent: "renew the clawdyclaw domain" });
       const headers = {
@@ -392,7 +400,7 @@ describe("third-party transaction", () => {
     "refuses to pay twice for the same authorization",
     { timeout: 60_000 },
     async () => {
-      const facilitator = LIVE ? X402_TESTNET_FACILITATOR : localUrl;
+      const facilitator = LIVE ? LIVE_FACILITATOR : localUrl;
       const env = sellerEnv(facilitator);
       const body = toolCall("classify_intent", { intent: "renew the clawdyclaw domain" });
 

@@ -18,6 +18,7 @@ import {
   paramsFingerprint,
   paymentRequiredBody,
   paymentRequirements,
+  priceUsd,
   resolveX402Config,
   verifyPaymentContext,
   verifyX402Payment,
@@ -361,9 +362,12 @@ describe("network selection", () => {
 
 // ── Verification ─────────────────────────────────────────────────────────────
 
+// Derived from the registry so a reprice cannot silently desync the amount
+// these verification cases sign and assert against.
+const VERIFY_TOOL = "classify_intent";
 const VERIFY_OPTS = {
-  toolName: "classify_intent",
-  usd: 0.005,
+  toolName: VERIFY_TOOL,
+  usd: priceUsd(VERIFY_TOOL) as number,
   resource: "http://clawdyclaw.com/mcp/v1",
 };
 
@@ -718,7 +722,7 @@ describe("payment payload over MCP _meta", () => {
     // to prove a fresh transport.
     const { paymentRequiredBody } = await import("../src/lib/x402");
     const config = testConfig();
-    const quote = await paymentRequiredBody("classify_intent", 0.005, {
+    const quote = await paymentRequiredBody(VERIFY_TOOL, VERIFY_OPTS.usd, {
       config,
       resource: "http://clawdyclaw.com/mcp/v1",
     });

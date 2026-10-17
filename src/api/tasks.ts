@@ -38,7 +38,9 @@ tasks.get("/", requireSession, async (c) => {
 
 // Get single task — signed-in operators only.
 tasks.get("/:id", requireSession, async (c) => {
-  const task = await getTask(c.env.DB, c.req.param("id"));
+  const id = c.req.param("id");
+  if (!id) return c.json({ error: "Missing task id" }, 400);
+  const task = await getTask(c.env.DB, id);
   if (!task) return c.json({ error: "Task not found" }, 404);
   return c.json(task);
 });
@@ -48,6 +50,7 @@ tasks.get("/:id", requireSession, async (c) => {
 // approve HITL tasks as anyone.)
 tasks.post("/:id/approve", requireSession, async (c) => {
   const id = c.req.param("id");
+  if (!id) return c.json({ error: "Missing task id" }, 400);
   const task = await getTask(c.env.DB, id);
   if (!task) return c.json({ error: "Task not found" }, 404);
   if (task.status !== "pending") {
@@ -68,6 +71,7 @@ tasks.post("/:id/approve", requireSession, async (c) => {
 // Reject a task — same rule: the operator is the signed-in user.
 tasks.post("/:id/reject", requireSession, async (c) => {
   const id = c.req.param("id");
+  if (!id) return c.json({ error: "Missing task id" }, 400);
   const task = await getTask(c.env.DB, id);
   if (!task) return c.json({ error: "Task not found" }, 404);
   if (task.status !== "pending") {
@@ -90,6 +94,7 @@ tasks.post("/:id/reject", requireSession, async (c) => {
 // tokens drive the downstream call.
 tasks.post("/:id/execute", requireSession, async (c) => {
   const id = c.req.param("id");
+  if (!id) return c.json({ error: "Missing task id" }, 400);
   const task = await getTask(c.env.DB, id);
   if (!task) return c.json({ error: "Task not found" }, 404);
   if (task.status !== "approved") {

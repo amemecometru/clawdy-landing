@@ -22,6 +22,11 @@ export interface SessionCapableEnv {
   SESSIONS?: KVNamespace;
 }
 
+export type SessionContext = Context<{
+  Bindings: SessionCapableEnv;
+  Variables: { user: SessionUser };
+}>;
+
 /**
  * Drop-in Hono middleware: rejects unauthenticated callers with 401 and
  * exposes the session user as c.get("user"). Use on every route that must
@@ -33,7 +38,7 @@ export interface SessionCapableEnv {
  * without a session store there is no one to trust.
  */
 export async function requireSession(
-  c: Context<{ Bindings: SessionCapableEnv }>,
+  c: SessionContext,
   next: Next
 ): Promise<Response | void> {
   const user = c.env.SESSIONS

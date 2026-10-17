@@ -382,6 +382,7 @@ models.get("/models", async (c) => {
 /** Probe bound credentials with a lightweight authenticated upstream call. */
 models.post("/models/:provider/test", requireSession, async (c) => {
   const provider = c.req.param("provider");
+  if (!provider) return c.json({ error: "unknown provider" }, 404);
   const def = MODEL_DEFS.find((m) => m.provider === provider);
   if (!def) return c.json({ error: "unknown provider" }, 404);
 
@@ -413,6 +414,7 @@ models.post("/models/:provider/test", requireSession, async (c) => {
 /** Run a model behind-the-curtain. Operator-facing, returns clean result. */
 models.post("/models/:provider/run", requireSession, async (c) => {
   const provider = c.req.param("provider");
+  if (!provider) return c.json({ error: "unknown provider" }, 404);
   const def = MODEL_DEFS.find((m) => m.provider === provider);
   if (!def) return c.json({ error: "unknown provider" }, 404);
   if (def.mode === "core") return c.json({ error: "core channel — no inference surface" }, 400);

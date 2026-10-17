@@ -11,6 +11,7 @@
 
 import { Hono } from "hono";
 import { requireSession, authedUser } from "../lib/require-auth";
+import { getSessionUser, sessionUserOrDefault } from "../lib/session";
 import { storeToken, listTokens, type VaultEnv } from "../db/vault";
 
 export interface IntegrationEnv extends VaultEnv {
@@ -365,6 +366,7 @@ integrations.get("/auth/:provider/callback", async (c) => {
  */
 integrations.post("/integrations/:provider/key", requireSession, async (c) => {
   const provider = c.req.param("provider");
+  if (!provider) return c.json({ error: "Unknown provider" }, 404);
   const def = INTEGRATIONS.find((i) => i.provider === provider);
   if (!def) return c.json({ error: "Unknown provider" }, 404);
   if (def.mode !== "api_key") {
