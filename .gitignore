@@ -55,3 +55,5 @@ cli/clawdy.mjs.save
 # their own .git dirs. The brief markdown beside them IS tracked; the nested
 # repos are not part of this project.
 durable-objects/*/
+.env/*
+.env
