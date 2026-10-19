@@ -13,7 +13,16 @@
 export type ParticipantKind = "human" | "agent";
 
 export interface RoomParticipant {
+  /**
+   * Stable identity (`human:<sub>` / `agent:<name>`). Two tabs from the same
+   * person collapse to one entry.
+   */
   id: string;
+  /**
+   * The WebSocket connection that admitted this participant. Distinct from `id`
+   * — messages arrive per-connection, so this is what onMessage matches on.
+   */
+  connection_id: string;
   name: string;
   kind: ParticipantKind;
   joined_at: number;

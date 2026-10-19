@@ -53,9 +53,9 @@ export class StudioRoom extends Agent<ClawdyEnv, StudioRoomState> {
   }
 
   async onConnect(connection: Connection): Promise<void> {
-    const who = await identify(connection.uri, this.env);
+    const who = await identify(connection.uri, connection.id, this.env);
     const participants = [
-      ...this.state.participants.filter((p) => p.id !== who.id),
+      ...this.state.participants.filter((p) => p.connection_id !== connection.id),
       who,
     ].slice(0, MAX_PARTICIPANTS);
 
@@ -67,10 +67,10 @@ export class StudioRoom extends Agent<ClawdyEnv, StudioRoomState> {
   }
 
   onClose(connection: Connection): void {
-    if (!this.state.participants.some((p) => p.id === connection.id)) return;
+    if (!this.state.participants.some((p) => p.connection_id === connection.id)) return;
     this.setState({
       ...this.state,
-      participants: this.state.participants.filter((p) => p.id !== connection.id),
+      participants: this.state.participants.filter((p) => p.connection_id !== connection.id),
       revision: this.state.revision + 1,
     });
   }
@@ -79,7 +79,7 @@ export class StudioRoom extends Agent<ClawdyEnv, StudioRoomState> {
     const text = typeof message === "string" ? message : new TextDecoder().decode(message);
     if (!text.trim()) return;
 
-    const author = this.state.participants.find((p) => p.id === connection.id);
+    const author = this.state.participants.find((p) => p.connection_id === connection.id);
     const parsed = safeParseEntry(text, author);
 
     this.setState({
@@ -120,14 +120,19 @@ export class StudioRoom extends Agent<ClawdyEnv, StudioRoomState> {
 
 // ── Identity ───────────────────────────────────────────────────────────────────
 
-async function identify(uri: string | null, env: ClawdyEnv): Promise<RoomParticipant> {
+async function identify(
+  uri: string | null,
+  connectionId: string,
+  env: ClawdyEnv
+): Promise<RoomParticipant> {
   const params = uri ? new URL(uri).searchParams : null;
+  const now = Date.now();
 
   // Agents identify themselves. This is a declared machine identity, not a
   // privilege claim — an agent still only reaches rooms it is pointed at.
   if (params?.get("kind") === "agent") {
     const name = params.get("name") ?? "agent";
-    return { id: `agent:${name}`, name, kind: "agent", joined_at: Date.now() };
+    return { id: `agent:${name}`, connection_id: connectionId, name, kind: "agent", joined_at: now };
   }
 
   // Humans present a ticket minted over an authenticated request.
@@ -136,18 +141,20 @@ async function identify(uri: string | null, env: ClawdyEnv): Promise<RoomPartici
     if (ticket) {
       return {
         id: `human:${ticket.sub}`,
+        connection_id: connectionId,
         name: ticket.name,
         kind: "human",
-        joined_at: Date.now(),
+        joined_at: now,
       };
     }
   }
 
   return {
     id: `human:anon:${crypto.randomUUID().slice(0, 8)}`,
+    connection_id: connectionId,
     name: params?.get("name") ?? "guest",
     kind: "human",
-    joined_at: Date.now(),
+    joined_at: now,
   };
 }
 
