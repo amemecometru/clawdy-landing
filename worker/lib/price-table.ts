@@ -13,6 +13,7 @@ import { toAtomicUnits } from "./x402";
 /** Category groupings used by the audit. */
 export const TOOL_CATEGORIES = [
   "orchestration",
+  "pages",
   "communication",
   "research",
   "inference",
@@ -39,7 +40,13 @@ export interface PricedTool {
   on_execution_surface: boolean;
 }
 
-/** Every tool the registry prices, ordered as the registry lists them. */
+/**
+ * Every tool in the registry, ordered as the registry lists them.
+ *
+ * Includes tools priced at $0. A free tool is still a catalogue entry an agent
+ * discovers and can call without paying, so dropping it here would make the
+ * discovery document and this table disagree about what exists.
+ */
 export const PRICE_TABLE: readonly PricedTool[] = Object.freeze(
   TOOL_DEFS.map((tool) =>
     Object.freeze({

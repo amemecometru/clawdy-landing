@@ -325,12 +325,84 @@ CREATE TABLE IF NOT EXISTS professionals_receipts (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_pro_receipt_checkout ON professionals_receipts(checkout_id);
 
 CREATE INDEX IF NOT EXISTS idx_follow_ups_due ON follow_ups(status, due_at);
+
+-- ── Agent-ordered pages ──────────────────────────────────────────────────────
+-- One row per page an agent has ordered. The spec is the source of truth; the
+-- rendered HTML is a derived artifact regenerated on every rebuild.
+
+CREATE TABLE IF NOT EXISTS page_builds (
+  id            TEXT PRIMARY KEY,
+  slug          TEXT NOT NULL UNIQUE,
+  kind          TEXT NOT NULL,
+  status        TEXT NOT NULL DEFAULT 'building'
+                CHECK (status IN ('draft','building','review','published','failed')),
+  title         TEXT NOT NULL,
+  brand         TEXT,
+  agent_name    TEXT,
+  spec_json     TEXT NOT NULL,
+  html          TEXT,
+  created_at    INTEGER NOT NULL DEFAULT (unixepoch()),
+  built_at      INTEGER,
+  published_at  INTEGER,
+  -- Asking price, set at order time. Deliberately not derived from order
+  -- history: what a page last sold for is not what it is worth today.
+  price_micros  INTEGER NOT NULL DEFAULT 0,
+  sold_count    INTEGER NOT NULL DEFAULT 0,
+  revenue_micros INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_page_builds_status ON page_builds(status);
+CREATE INDEX IF NOT EXISTS idx_page_builds_created ON page_builds(created_at DESC);
+
+-- Sales against a page. Revenue on page_builds is denormalised from this so the
+-- tools board is one query instead of one per row.
+
+CREATE TABLE IF NOT EXISTS page_orders (
+  id            TEXT PRIMARY KEY,
+  page_id       TEXT NOT NULL REFERENCES page_builds(id),
+  buyer         TEXT NOT NULL,
+  amount_micros INTEGER NOT NULL,
+  currency      TEXT NOT NULL DEFAULT 'USD',
+  tx_ref        TEXT,
+  created_at    INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS idx_page_orders_page ON page_orders(page_id, created_at DESC);
 `;
 
-export async function migrate(db: D1Database): Promise<void> {
-  const statements = SCHEMA_SQL
+/**
+ * Split a schema into individual statements.
+ *
+ * Line comments are stripped before splitting, because a `--` comment may
+ * legitimately contain a semicolon and splitting on it would hand the leftover
+ * fragment to the database as a statement of its own. This ran fine for a long
+ * time and only broke once a comment was written with a colon in it.
+ */
+export function splitStatements(sql: string): string[] {
+  return sql
+    .split("\n")
+    .map((line) => {
+      // Only strip a comment marker that is outside a quoted string. Schema DDL
+      // has no such strings today, but a future one must not be mangled.
+      let inSingle = false;
+      let inDouble = false;
+      for (let i = 0; i < line.length - 1; i++) {
+        const ch = line[i];
+        if (ch === "'" && !inDouble) inSingle = !inSingle;
+        else if (ch === '"' && !inSingle) inDouble = !inDouble;
+        else if (!inSingle && !inDouble && ch === "-" && line[i + 1] === "-") {
+          return line.slice(0, i);
+        }
+      }
+      return line;
+    })
+    .join("\n")
     .split(";")
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
+}
+
+export async function migrate(db: D1Database): Promise<void> {
+  const statements = splitStatements(SCHEMA_SQL);
   await db.batch(statements.map((sql) => db.prepare(sql)));
 }

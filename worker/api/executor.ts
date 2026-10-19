@@ -18,6 +18,10 @@ import {
   scheduleFollowUp,
   type OutreachContext,
 } from "./outreach";
+import { createPage, getPage } from "../db/pages";
+import { renderPageHtml, renderPageReact } from "../lib/page-render";
+import { normaliseSpec } from "./pages-normalise";
+import type { PageSpec } from "../../shared/pages";
 
 /** Adapt the executor context for the outreach module. */
 function outreachCtx(ctx: ExecutorContext): OutreachContext {
@@ -121,9 +125,99 @@ export async function execute(
     case "flux_image":
       return handleInfer(ctx, "flux", args);
 
+    // ── Pages ────────────────────────────────────────────────────────────
+    // The marketplace deliverable. These call straight into the pages data
+    // layer rather than looping back through Hono, so an agent on /mcp/v1 pays
+    // once and gets its page without an internal HTTP hop.
+
+    case "order_page": {
+      const parsed = await orderPageFromArgs(args, ctx);
+      if ("error" in parsed) return { ok: false, output: parsed };
+      return { ok: true, output: parsed };
+    }
+    case "page_source": {
+      const pageId = (args.page_id as string) ?? "";
+      const page = await getPage(ctx.DB, pageId);
+      if (!page) return { ok: false, output: { error: "Page not found", page_id: pageId } };
+      let spec: PageSpec;
+      try {
+        spec = JSON.parse(page.spec_json) as PageSpec;
+      } catch {
+        return { ok: false, output: { error: "Stored spec is unreadable", page_id: pageId } };
+      }
+      return {
+        ok: true,
+        output: {
+          page_id: page.id,
+          slug: page.slug,
+          html: renderPageHtml(spec),
+          react: renderPageReact(spec),
+        },
+      };
+    }
+
     default:
       return { ok: false, output: { error: "UNKNOWN_TOOL", tool } };
   }
+}
+
+/**
+ * Build a page from MCP tool arguments.
+ *
+ * `blocks` arrives as a JSON string because MCP clients are not required to send
+ * structured objects; it is parsed and normalised here, with the same warnings
+ * the REST path emits so a bad order fails visibly instead of rendering blank.
+ */
+async function orderPageFromArgs(
+  args: Record<string, unknown>,
+  ctx: ExecutorContext
+): Promise<Record<string, unknown>> {
+  let blocks: unknown = args.blocks;
+  if (typeof blocks === "string") {
+    try {
+      blocks = JSON.parse(blocks);
+    } catch {
+      return { error: "blocks is not valid JSON" };
+    }
+  }
+
+  let palette: unknown = args.palette;
+  if (typeof palette === "string" && !palette.trim().startsWith("{")) {
+    palette = palette;
+  } else if (typeof palette === "string") {
+    try {
+      palette = JSON.parse(palette);
+    } catch {
+      return { error: "palette is not valid JSON" };
+    }
+  }
+
+  const { spec, warnings } = normaliseSpec({
+    ...args,
+    blocks: Array.isArray(blocks) ? blocks : [],
+    palette,
+  });
+
+  if (spec.blocks.length === 0) {
+    return { error: "order had no renderable blocks", warnings };
+  }
+
+  const priceUsd = Number(args.price_usd ?? 0);
+  const page = await createPage(ctx.DB, {
+    spec,
+    agentName: `agent:${ctx.operator.sub}`,
+    html: renderPageHtml(spec),
+    status: "published",
+    priceMicros: Number.isFinite(priceUsd) && priceUsd > 0 ? Math.round(priceUsd * 1_000_000) : 0,
+  });
+
+  return {
+    page_id: page.id,
+    slug: page.slug,
+    hosted_url: `https://mcp.clawdyclaw.com/p/${page.slug}`,
+    price_micros: page.price_micros,
+    warnings,
+  };
 }
 
 async function handleInfer(

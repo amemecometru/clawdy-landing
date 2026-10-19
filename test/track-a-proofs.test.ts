@@ -19,6 +19,9 @@ import { registerExactEvmScheme } from "@x402/evm/exact/client";
 import { privateKeyToAccount } from "viem/accounts";
 import mcp from "../worker/api/mcp";
 import { PRICE_TABLE } from "../worker/lib/price-table";
+
+/** Kept in step with the registry; see the note in test/x402.test.ts. */
+const EXPECTED_TOOL_COUNT = 38;
 import { withX402Client } from "../worker/lib/x402";
 
 const LIVE_KEY = process.env.X402_BUYER_PRIVATE_KEY as `0x${string}` | undefined;
@@ -230,7 +233,7 @@ describe("third-party discovery", () => {
         }[];
       };
 
-      expect(catalogue.discovery).toHaveLength(35);
+      expect(catalogue.discovery).toHaveLength(EXPECTED_TOOL_COUNT);
       const discovered = new Map<string, { description: string; price_usd: number; atomic: string; mcp: string | null }>();
       for (const entry of catalogue.discovery) {
         const bazaar = entry.extensions?.bazaar;
@@ -251,7 +254,7 @@ describe("third-party discovery", () => {
       });
       const http = new x402HTTPClient(client);
 
-      expect(discovered.size).toBe(35);
+      expect(discovered.size).toBe(EXPECTED_TOOL_COUNT);
 
       // Every price the agent learned must equal the locked table.
       for (const tool of PRICE_TABLE) {

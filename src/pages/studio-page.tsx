@@ -8,11 +8,22 @@ import { ModelsPage } from "@/pages/studio/models-page";
 import { SandboxPage } from "@/pages/studio/sandbox-page";
 import { VaultPage } from "@/pages/studio/vault-page";
 import { CliPage } from "@/pages/studio/cli-page";
+import { ToolsBoard } from "@/pages/studio/tools-board";
 
-type Section = "command" | "queue" | "telemetry" | "tools" | "models" | "sandbox" | "vault" | "cli";
+type Section =
+  | "command"
+  | "board"
+  | "queue"
+  | "telemetry"
+  | "tools"
+  | "models"
+  | "sandbox"
+  | "vault"
+  | "cli";
 
 const NAV: Array<{ path: Section; label: string; icon: string; badge?: string }> = [
   { path: "command", label: "Command Center", icon: "◈" },
+  { path: "board", label: "Tools Board", icon: "▦", badge: "NEW" },
   { path: "queue", label: "Approval Queue", icon: "⚑", badge: "HITL" },
   { path: "telemetry", label: "Telemetry", icon: "⇄" },
   { path: "tools", label: "Tool Registry", icon: "⚒" },
@@ -24,6 +35,7 @@ const NAV: Array<{ path: Section; label: string; icon: string; badge?: string }>
 
 const REAL_PATH: Record<Section, string> = {
   command: "/studio",
+  board: "/studio/board",
   queue: "/studio/queue",
   telemetry: "/studio/telemetry",
   tools: "/studio/tools",
@@ -34,6 +46,7 @@ const REAL_PATH: Record<Section, string> = {
 };
 
 function fromSearchPath(pathname: string): Section {
+  if (pathname.startsWith("/studio/board")) return "board";
   if (pathname.startsWith("/studio/queue")) return "queue";
   if (pathname.startsWith("/studio/telemetry")) return "telemetry";
   if (pathname.startsWith("/studio/tools")) return "tools";
@@ -80,6 +93,7 @@ export default function StudioPage() {
       widgetFeedAction={() => goto("/studio?widgetfeed=1")}
       className="bg-obsidian text-porcelain"
     >
+      {section === "board" && <ToolsBoard />}
       {section === "queue" && <ApprovalQueue mode={mode} onMode={setMode} />}
       {section === "telemetry" && <TelemetryPage mode={mode} onMode={setMode} />}
       {section === "tools" && <ToolRegistry mode={mode} onMode={setMode} />}

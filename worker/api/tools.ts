@@ -36,7 +36,8 @@ export type ToolCategory =
   | "automation"
   | "commerce"
   | "memory"
-  | "orchestration";
+  | "orchestration"
+  | "pages";
 
 export type ToolStatus = "live" | "stub" | "planned";
 export type ToolCostTier = "free" | "cheap" | "standard" | "premium";
@@ -789,6 +790,92 @@ export const TOOL_DEFS: ToolDef[] = [
         properties: { type: "object", description: "fields to set" },
       },
       required: ["email"],
+    },
+  },
+  // ── Pages (the agent-ordered deliverable) ──────────────────────────────
+  // This is the category that makes the registry sell something rather than
+  // report something. An agent orders a page and gets two connections back: a
+  // hosted URL under mcp.clawdyclaw.com and source it owns outright. Colour and
+  // layout are addressable tokens, not prose, which is what makes an order from
+  // a machine reproducible where a human-driven builder is not.
+
+  {
+    name: "order_page",
+    mcpName: "order_page",
+    category: "pages",
+    description:
+      "Order a web page and receive a hosted URL plus source you own. Kinds: oauth_client, landing, studio, carousel, thumbnail, inline, horizontal, inspirational.",
+    useCase:
+      "An agent that needs a consent screen, a launch surface, or an inline component before it can finish its own job — orders it here instead of hand-assembling markup.",
+    intercepted: false,
+    status: "live",
+    providerBinding: "none",
+    costTier: "standard",
+    x402_price_usd: 0.02,
+    inputSchema: {
+      type: "object",
+      properties: {
+        kind: { type: "string", description: "Page kind to build." },
+        title: { type: "string", description: "Page title / default heading." },
+        brand: { type: "string", description: "Brand or product name shown in the footer." },
+        brief: {
+          type: "string",
+          description:
+            "Written brief. When blocks are omitted, the spec is generated from this through the AI Gateway.",
+        },
+        blocks: {
+          type: "string",
+          description:
+            "Ordered block list. JSON: [{type:hero|features|cards|stats|form|cta|consent,...}]",
+        },
+        palette: {
+          type: "string",
+          description:
+            "Named palette (obsidian, graphite, bone, parchment) or a full colour object {mode,bg,surface,text,muted,border,accent,accentText}.",
+        },
+        price_usd: { type: "number", description: "Asking price to list the page at." },
+      },
+      required: ["kind"],
+    },
+  },
+  {
+    name: "page_source",
+    mcpName: "page_source",
+    category: "pages",
+    description:
+      "Fetch both renderings of an ordered page: standalone HTML and a React component with no runtime dependency.",
+    useCase:
+      "Taking the page home — an agent re-themes or forks the source into its own project rather than hotlinking our host.",
+    intercepted: false,
+    status: "live",
+    providerBinding: "none",
+    costTier: "cheap",
+    x402_price_usd: 0.002,
+    inputSchema: {
+      type: "object",
+      properties: {
+        page_id: { type: "string", description: "Page id returned by order_page." },
+      },
+      required: ["page_id"],
+    },
+  },
+  {
+    name: "page_market_stats",
+    category: "pages",
+    description:
+      "Marketplace board: every ordered page with its age, time on market, sale count, and revenue.",
+    useCase:
+      "Deciding what to build next — the agent sees which page kinds actually sell before spending another order.",
+    intercepted: false,
+    status: "live",
+    providerBinding: "none",
+    costTier: "free",
+    x402_price_usd: 0,
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "string", description: "Rows to return (1-500)." },
+      },
     },
   },
 ];

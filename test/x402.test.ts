@@ -15,6 +15,13 @@ import {
 import { TOOL_DEFS } from "../worker/api/tools";
 import { PRICE_TABLE, priceTableByCategory, TOOL_CATEGORIES } from "../worker/lib/price-table";
 
+/**
+ * Registry size is asserted rather than derived from TOOL_DEFS.length on purpose:
+ * a test that computes its expectation from the thing under test cannot catch a
+ * tool that was added or dropped by accident. Bump this when the registry grows.
+ */
+const EXPECTED_TOOL_COUNT = 38;
+
 class MemKV {
   map = new Map<string, string>();
   async get(key: string): Promise<string | null> {
@@ -118,7 +125,7 @@ describe("toAtomicUnits", () => {
 
 describe("priceUsd", () => {
   it("matches the locked table", () => {
-    expect(TOOL_DEFS).toHaveLength(35);
+    expect(TOOL_DEFS).toHaveLength(EXPECTED_TOOL_COUNT);
     expect(priceUsd("list_tasks")).toBe(0.01);
     expect(priceUsd("classify_intent")).toBe(0.01);
     expect(priceUsd("web_search")).toBe(0.01);
@@ -401,9 +408,17 @@ describe("X402_DEV_BYPASS", () => {
 // ── $0 tools and discovery ─────────────────────────────────────────────────
 
 describe("$0 tools", () => {
-  it("have no priced registry entry today, so the branch is covered by requiresPayment", () => {
+  it("are free by declaration and are skipped by the payment gate", () => {
+    // `page_market_stats` ships at $0 deliberately: the board is the thing the
+    // marketplace is judged by, so an agent can read it without paying. The
+    // registry may hold more $0 tools over time; what matters is that the gate
+    // treats every one of them as free.
     const zeros = TOOL_DEFS.filter((t) => t.x402_price_usd === 0);
-    expect(zeros).toHaveLength(0);
+    expect(zeros.length).toBeGreaterThan(0);
+    expect(zeros.every((t) => t.name.startsWith("page_"))).toBe(true);
+    for (const tool of zeros) {
+      expect(requiresPayment(tool.x402_price_usd), tool.name).toBe(false);
+    }
     expect(requiresPayment(0)).toBe(false);
   });
 
@@ -440,12 +455,20 @@ describe("unknown tools", () => {
 // ── PRICE_TABLE export ───────────────────────────────────────────────────────
 
 describe("PRICE_TABLE", () => {
-  it("lists all 35 priced tools with their atomic amounts", () => {
-    expect(PRICE_TABLE).toHaveLength(35);
-    expect(new Set(PRICE_TABLE.map((t) => t.name)).size).toBe(35);
+  it("lists every priced tool with its atomic amounts", () => {
+    expect(PRICE_TABLE).toHaveLength(EXPECTED_TOOL_COUNT);
+    expect(new Set(PRICE_TABLE.map((t) => t.name)).size).toBe(EXPECTED_TOOL_COUNT);
     for (const tool of PRICE_TABLE) {
       expect(tool.price_atomic, tool.name).toBe(toAtomicUnits(tool.price_usd));
-      expect(tool.price_usd, tool.name).toBeGreaterThan(0);
+      expect(tool.price_usd, tool.name).toBeGreaterThanOrEqual(0);
+    }
+
+    // Free entries are allowed, but they have to be free on purpose: anything at
+    // $0 must be a board-reading tool, never an execution surface.
+    const free = PRICE_TABLE.filter((t) => t.price_usd === 0);
+    for (const tool of free) {
+      expect(tool.category, tool.name).toBe("pages");
+      expect(tool.on_execution_surface, tool.name).toBe(false);
     }
   });
 
@@ -465,7 +488,7 @@ describe("PRICE_TABLE", () => {
   it("groups every tool under a known category", () => {
     const grouped = priceTableByCategory();
     const total = Object.values(grouped).reduce((sum, rows) => sum + rows.length, 0);
-    expect(total).toBe(35);
+    expect(total).toBe(EXPECTED_TOOL_COUNT);
     expect(Object.keys(grouped).every((c) => (TOOL_CATEGORIES as readonly string[]).includes(c))).toBe(true);
   });
 });

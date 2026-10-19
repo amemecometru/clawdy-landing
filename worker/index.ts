@@ -34,6 +34,7 @@ import professionalsPayment from "./api/professionals-payment";
 import campaigns from "./api/campaigns";
 import qualify from "./api/qualify";
 import rooms from "./api/rooms";
+import pages, { hosted as hostedPages } from "./api/pages";
 import { migrate } from "./db/schema";
 import { processDueFollowUps } from "./api/outreach";
 
@@ -155,6 +156,16 @@ app.route("/api/v1/qualify", qualify);
 // dispatched by routeAgentRequest before Hono ever sees the request.
 
 app.route("/api/v1/rooms", rooms);
+
+// ── Agent-ordered pages — the marketplace deliverable ────────────────────────
+// Two connections out of one order: this REST surface (spec in, hosted URL +
+// source out) and the hosted pages themselves, served below.
+
+app.route("/api/v1/pages", pages);
+
+// Hosted page delivery. Mounted at the root because the public URL is
+// https://mcp.clawdyclaw.com/p/<slug> with no /api prefix.
+app.route("/", hostedPages);
 
 // ── MCP Tool Server (JSON-RPC over HTTP) ──────────────────────────────────────
 // Mounted explicitly (not via route()) so both the bare and trailing-slash

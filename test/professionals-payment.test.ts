@@ -17,14 +17,14 @@ import {
   WORKFLOW_TIERS,
   type ProfessionalsPaymentEnv,
 } from "../worker/lib/professionals-payment";
-import { SCHEMA_SQL } from "../worker/db/schema";
+import { SCHEMA_SQL, splitStatements } from "../worker/db/schema";
 
 // ── D1-shaped adapter over node:sqlite ───────────────────────────────────────
 
 class MemD1 {
   private db = new DatabaseSync(":memory:");
   constructor() {
-    for (const stmt of SCHEMA_SQL.split(";").map((s) => s.trim()).filter(Boolean)) {
+    for (const stmt of splitStatements(SCHEMA_SQL)) {
       this.db.exec(stmt);
     }
   }
