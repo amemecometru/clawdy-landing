@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildDefaultMessage } from "../src/api/campaigns";
-import type { CampaignLeadDetail } from "../src/db/campaigns";
+import { buildDefaultMessage } from "../worker/api/campaigns";
+import type { CampaignLeadDetail } from "../worker/db/campaigns";
 
 const lead: CampaignLeadDetail = {
   id: "lead_1",

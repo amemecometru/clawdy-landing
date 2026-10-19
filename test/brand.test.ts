@@ -11,7 +11,7 @@ import {
   parseJson,
   tierMonthlyPrice,
   tierSetupPrice,
-} from "../src/lib/brand";
+} from "../worker/lib/brand";
 
 describe("domain + tier helpers", () => {
   it("normalizes TLDs with or without a leading dot", () => {

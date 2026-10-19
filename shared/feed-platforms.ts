@@ -1,6 +1,7 @@
 /**
  * Social / content feed platform registry.
- * Shared by the WidgetFeed backend (src/api/feeds.ts) and the Studio frontend.
+ * Isomorphic: shared by the WidgetFeed backend (worker/api/feeds.ts) and the
+ * Studio frontend. Lives outside src/ and worker/ so neither side owns it.
  *
  * Two widget types:
  *   "feed"   → server-side live RSS aggregation (YouTube, Medium, Substack, HackerNoon)

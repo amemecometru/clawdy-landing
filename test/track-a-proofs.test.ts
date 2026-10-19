@@ -17,9 +17,9 @@ import { recoverTypedDataAddress } from "viem";
 import { x402Client, x402HTTPClient } from "@x402/core/client";
 import { registerExactEvmScheme } from "@x402/evm/exact/client";
 import { privateKeyToAccount } from "viem/accounts";
-import mcp from "../src/api/mcp";
-import { PRICE_TABLE } from "../src/lib/price-table";
-import { withX402Client } from "../src/lib/x402";
+import mcp from "../worker/api/mcp";
+import { PRICE_TABLE } from "../worker/lib/price-table";
+import { withX402Client } from "../worker/lib/x402";
 
 const LIVE_KEY = process.env.X402_BUYER_PRIVATE_KEY as `0x${string}` | undefined;
 const LIVE = Boolean(LIVE_KEY);
@@ -353,6 +353,16 @@ describe("third-party transaction", () => {
         "idempotency-key": "track-a-1",
       };
 
+      // Warm the buyer path before timing it. The first call in a fresh vitest
+      // process pays for one-time SDK and signer init, which is cold start, not
+      // request latency — the same warm Worker is already serving in production.
+      // Local facilitator only: a warm-up cycle against testnet would move real
+      // testnet USDC purely to prime a cache.
+      if (!LIVE) {
+        await timedPayment(env, facilitator, { ...headers, "idempotency-key": "track-a-warmup" }, body);
+      }
+      const settleBeforeWarmup = facilitatorCalls.settle;
+
       const result = await payWithRetry(env, facilitator, headers, body);
       expect(result.response, JSON.stringify(result.log)).toBeTruthy();
       expect(result.response!.status, JSON.stringify(result.log)).toBe(200);
@@ -381,10 +391,12 @@ describe("third-party transaction", () => {
       expect(replay.headers.get("x402-idempotent-replay")).toBe("true");
       expect(await replay.text()).toBe(JSON.stringify(parsed));
 
-      // One authorization, one settlement, however many times it is sent. Against
-      // the local facilitator that is a counter; on testnet the proof is the
-      // byte-identical replay and the absence of a second transaction.
-      if (!LIVE) expect(facilitatorCalls.settle).toBe(1);
+      // Settlements charged by the timed call alone. Measured as a delta because
+      // the warm-up cycle above already charged one against the local stub.
+      // One authorization, one settlement, however many times it is sent.
+      // Against the local facilitator that is a counter; on testnet the proof is
+      // the byte-identical replay and the absence of a second transaction.
+      if (!LIVE) expect(facilitatorCalls.settle - settleBeforeWarmup).toBe(1);
 
       const budget = LIVE ? 10_000 : 1_000;
       expect(result.elapsed).toBeLessThan(budget);

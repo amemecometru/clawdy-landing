@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "vitest";
-import { SCHEMA_SQL } from "../src/db/schema";
+import { SCHEMA_SQL } from "../worker/db/schema";
 
 const EXPECTED_TABLES = [
   "campaign_leads",

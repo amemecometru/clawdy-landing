@@ -1,9 +1,10 @@
+MEMORY.md
+.MEMORY.md
 phantom-base
 codemode.md
 VITEsrcMCP.md
 .text-file.txt
 src/.test-file.txt
-package-lock.json
 node_modules
 dist
 dist-ssr
@@ -22,26 +23,35 @@ env.d.ts
 .dev.vars.example
 .env.swp
 EXECUTION-ROADMAPII.md
+# Deployment config carries the Cloudflare account ID plus D1/KV/R2 resource IDs.
+# These are identifiers rather than credentials, but they map the whole account
+# surface, so this file stays out of git. Codespaces get it injected at
+# provision time rather than tracked.
 wrangler.jsonc
 rh-live-api-base64.txt
-x-Accessing-Ads-accounts             
+x-Accessing-Ads-accounts
 x-Sorting
-x-Ads-API-hierarchy-and-terminology  
+x-Ads-API-hierarchy-and-terminology
 x-Timezones
-x-Ads-MCP                            
+x-Ads-MCP
 x-Tools-and-libraries
-x-Ads-MCP-API-reference              
+x-Ads-MCP-API-reference
 x-Versions
-x-Currency                           
+x-Currency
 x-analytics
-x-Increasing-access                  
+x-Increasing-access
 x-audiences
-x-Making-Authenticated-Requests      
-x-error-codes-and-responces
-x-Pagination                         
+x-Making-Authenticated-Requests
+x-error-codes-and-respondes
+x-Pagination
 x-rate-limiting
-x-Sandbox                            
+x-Sandbox
 x-step-by-step-guide
 .superpowers*
 public/robots.txt
 cli/clawdy.mjs.save
+
+# Reference checkouts of sibling projects live under durable-objects/ and carry
+# their own .git dirs. The brief markdown beside them IS tracked; the nested
+# repos are not part of this project.
+durable-objects/*/

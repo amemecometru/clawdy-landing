@@ -18,6 +18,7 @@
 
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
+import { routeAgentRequest } from "agents";
 import { createAuthRouter } from "./auth/auth";
 import webhook from "./api/webhook";
 import tasks from "./api/tasks";
@@ -32,13 +33,17 @@ import professionals from "./api/professionals";
 import professionalsPayment from "./api/professionals-payment";
 import campaigns from "./api/campaigns";
 import qualify from "./api/qualify";
+import rooms from "./api/rooms";
 import { migrate } from "./db/schema";
+import { processDueFollowUps } from "./api/outreach";
 
 // ── Env bindings ──────────────────────────────────────────────────────────────
 
 export interface ClawdyEnv {
   DB: D1Database;
   SESSIONS: KVNamespace;
+  /** Studio collaboration rooms. One instance per room; see worker/agents/studio-room.ts. */
+  StudioRoom: DurableObjectNamespace;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   AUTH_SECRET: string;
@@ -144,6 +149,12 @@ app.route("/api/v1/campaigns", campaigns);
 // ── Lead qualification (public, stateless) ───────────────────────────────────
 
 app.route("/api/v1/qualify", qualify);
+
+// ── Studio rooms — identity tickets only ─────────────────────────────────────
+// The collaborative surface itself is a WebSocket at /agents/studio-room/:room,
+// dispatched by routeAgentRequest before Hono ever sees the request.
+
+app.route("/api/v1/rooms", rooms);
 
 // ── MCP Tool Server (JSON-RPC over HTTP) ──────────────────────────────────────
 // Mounted explicitly (not via route()) so both the bare and trailing-slash
@@ -269,6 +280,12 @@ async function ensureDB(db: D1Database) {
 
 export default {
   async fetch(request: Request, env: ClawdyEnv, ctx: ExecutionContext): Promise<Response> {
+    // Studio rooms live at /agents/:class/:instance. routeAgentRequest handles both
+    // the HTTP request and the WebSocket upgrade, and returns null when the path is
+    // not an agent route — so this must run before the Hono app.
+    const agentResponse = await routeAgentRequest(request, env);
+    if (agentResponse) return agentResponse;
+
     await ensureDB(env.DB);
     return app.fetch(request, env, ctx);
   },
@@ -280,8 +297,12 @@ export default {
    */
   async scheduled(_event: ScheduledEvent, env: ClawdyEnv, _ctx: ExecutionContext): Promise<void> {
     await ensureDB(env.DB);
-    const { processDueFollowUps } = await import("./api/outreach");
     const { checked, queued } = await processDueFollowUps(env.DB);
     console.log(`[cron] follow-ups checked=${checked} queued=${queued}`);
   },
 };
+
+// Durable Object classes must be exported from the Worker entry module for
+// Wrangler to bind them. Re-exported here rather than defined inline so the
+// class lives with the rest of the backend in worker/agents/.
+export { StudioRoom } from "./agents/studio-room";

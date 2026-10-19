@@ -26,7 +26,7 @@ import {
   parseFeedXml,
   generateEventId,
   type FeedItem,
-} from "../lib/feed-platforms";
+} from "../../shared/feed-platforms";
 
 export interface FeedsEnv {
   DB: D1Database;

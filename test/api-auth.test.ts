@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import professionals from "../src/api/professionals";
-import campaigns from "../src/api/campaigns";
+import professionals from "../worker/api/professionals";
+import campaigns from "../worker/api/campaigns";
 
 class MemKV {
   map = new Map<string, string>();

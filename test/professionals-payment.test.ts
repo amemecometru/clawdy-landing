@@ -9,15 +9,15 @@
 
 import { DatabaseSync } from "node:sqlite";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import payment from "../src/api/professionals-payment";
+import payment from "../worker/api/professionals-payment";
 import {
   isWorkflowTier,
   quoteWorkflow,
   verifyStripeSignature,
   WORKFLOW_TIERS,
   type ProfessionalsPaymentEnv,
-} from "../src/lib/professionals-payment";
-import { SCHEMA_SQL } from "../src/db/schema";
+} from "../worker/lib/professionals-payment";
+import { SCHEMA_SQL } from "../worker/db/schema";
 
 // ── D1-shaped adapter over node:sqlite ───────────────────────────────────────
 

@@ -5,10 +5,10 @@
 import { createServer } from "node:http";
 import { describe, it } from "vitest";
 import { privateKeyToAccount } from "viem/accounts";
-import mcp from "../src/api/mcp";
+import mcp from "../worker/api/mcp";
 import { x402Client, x402HTTPClient } from "@x402/core/client";
 import { registerExactEvmScheme } from "@x402/evm/exact/client";
-import { priceUsd, X402_DEFAULT_FACILITATOR } from "../src/lib/x402";
+import { priceUsd, X402_DEFAULT_FACILITATOR } from "../worker/lib/x402";
 
 const KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d" as const;
 const OTHER_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80" as const;
@@ -178,7 +178,7 @@ describe.skipIf(!process.env.X402_BUYER_PRIVATE_KEY)("verification proof", () =>
 
       line("6. THE HONEST PAYMENT THROUGH OUR GATE — settles on chain");
       {
-        const { verifyX402Payment } = await import("../src/lib/x402");
+        const { verifyX402Payment } = await import("../worker/lib/x402");
         const verdict = await verifyX402Payment(
           new Request("http://clawdyclaw.com/", { headers: { "payment-signature": b64(payload) } }),
           {

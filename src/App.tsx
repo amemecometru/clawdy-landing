@@ -12,6 +12,7 @@ import SiteFooter from "@/components/sections/site-footer";
 import InfinityScrollerNav from "@/components/ui/infinity-scroller-nav";
 import LoginPage from "@/pages/login-page";
 import StudioPage from "@/pages/studio-page";
+import StudioRoomPage from "@/pages/studio/room-page";
 
 function useRoute() {
   const [path, setPath] = React.useState(() => window.location.pathname);
@@ -26,7 +27,14 @@ function useRoute() {
 export default function App() {
   const path = useRoute();
   const isAuthPage = path === "/login" || path === "/signup";
+  // The room is the collaborative core and is reachable outside the operator
+  // shell — an agent or a guest lands here directly from a room link.
+  const isRoom = path === "/room" || path.startsWith("/room/");
   const isStudio = path.startsWith("/studio");
+
+  if (isRoom) {
+    return <StudioRoomPage />;
+  }
 
   if (isStudio) {
     return <StudioPage />;

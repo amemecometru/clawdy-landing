@@ -1,5 +1,5 @@
 import * as React from "react";
-import { FEED_PLATFORMS } from "@/lib/feed-platforms";
+import { FEED_PLATFORMS } from "@shared/feed-platforms";
 
 /**
  * [+ WidgetFeed] selection drawer — mounts modular platform widgets onto the

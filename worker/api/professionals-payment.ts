@@ -38,6 +38,7 @@ import {
   getActiveEntitlement,
   getWorkflowCheckout,
   getWorkflowCheckoutByReference,
+  getWorkflowReceipt,
   listWorkflowCheckouts,
   markCheckoutPaid,
   saveWorkflowReceipt,
@@ -275,9 +276,7 @@ payment.get("/checkout/:id", async (c) => {
   if (!checkout || checkout.owner_sub !== c.get("owner_sub")) {
     return c.json({ error: "Checkout not found" }, 404);
   }
-  const receipt = await import("../db/professionals-payment").then((m) =>
-    m.getWorkflowReceipt(c.env.DB, checkout.id)
-  );
+  const receipt = await getWorkflowReceipt(c.env.DB, checkout.id);
   return c.json({ checkout: checkoutView(checkout, receipt) });
 });
 
@@ -340,7 +339,6 @@ payment.get("/entitlement", async (c) => {
 });
 
 payment.get("/receipt/:id/verify", async (c) => {
-  const { getWorkflowReceipt } = await import("../db/professionals-payment");
   const receipt = await getWorkflowReceipt(c.env.DB, c.req.param("id"));
   if (!receipt) return c.json({ error: "Receipt not found" }, 404);
   return c.json({

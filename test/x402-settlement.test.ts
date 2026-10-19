@@ -11,7 +11,7 @@ import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { recoverTypedDataAddress } from "viem";
 import { exportJWK, generateKeyPair, importJWK, SignJWT, type JWK } from "jose";
-import mcp from "../src/api/mcp";
+import mcp from "../worker/api/mcp";
 import {
   createIdempotencyStore,
   lookupIdempotent,
@@ -25,8 +25,8 @@ import {
   withX402Client,
   type X402Config,
   type X402Env,
-} from "../src/lib/x402";
-import { TOOL_DEFS } from "../src/api/tools";
+} from "../worker/lib/x402";
+import { TOOL_DEFS } from "../worker/api/tools";
 
 // ── Facilitator stub ─────────────────────────────────────────────────────────
 
@@ -720,7 +720,7 @@ describe("payment payload over MCP _meta", () => {
     // Quote, then sign the quote without paying it: the facilitator stub tracks
     // spent nonces, so a payload that has already been settled cannot be used
     // to prove a fresh transport.
-    const { paymentRequiredBody } = await import("../src/lib/x402");
+    const { paymentRequiredBody } = await import("../worker/lib/x402");
     const config = testConfig();
     const quote = await paymentRequiredBody(VERIFY_TOOL, VERIFY_OPTS.usd, {
       config,

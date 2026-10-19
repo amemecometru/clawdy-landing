@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import mcp from "../src/api/mcp";
+import mcp from "../worker/api/mcp";
 import {
   devBypassEnabled,
   paymentRequiredBody,
@@ -11,9 +11,9 @@ import {
   toAtomicUnits,
   verifyX402Payment,
   type X402Config,
-} from "../src/lib/x402";
-import { TOOL_DEFS } from "../src/api/tools";
-import { PRICE_TABLE, priceTableByCategory, TOOL_CATEGORIES } from "../src/lib/price-table";
+} from "../worker/lib/x402";
+import { TOOL_DEFS } from "../worker/api/tools";
+import { PRICE_TABLE, priceTableByCategory, TOOL_CATEGORIES } from "../worker/lib/price-table";
 
 class MemKV {
   map = new Map<string, string>();

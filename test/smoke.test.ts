@@ -10,11 +10,19 @@ afterAll(() => {
   // Ensure nothing holds the event loop open between tests / teardown.
 });
 
-it("serves /api/health with status ok", async () => {
-  const res = await fetch(`${BASE}/api/health`, {
-    headers: { Accept: "application/json" },
-  });
-  expect(res.status).toBe(200);
-  const body = (await res.json()) as { status?: string };
-  expect(body.status).toBe("ok");
-});
+// Opt-in deployment check, excluded from the default suite by vitest.config.ts.
+// Run it with `npm run test:smoke`. It reaches the public internet, so it gets an
+// explicit timeout rather than Vitest's 5s local default, which a network round
+// trip can exceed on a loaded machine.
+it(
+  "serves /api/health with status ok",
+  { timeout: 30_000 },
+  async () => {
+    const res = await fetch(`${BASE}/api/health`, {
+      headers: { Accept: "application/json" },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { status?: string };
+    expect(body.status).toBe("ok");
+  }
+);

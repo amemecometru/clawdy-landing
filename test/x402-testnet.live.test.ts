@@ -19,8 +19,8 @@ import { describe, expect, it } from "vitest";
 import { privateKeyToAccount } from "viem/accounts";
 import { createPublicClient, formatUnits, http } from "viem";
 import { baseSepolia } from "viem/chains";
-import mcp from "../src/api/mcp";
-import { withX402Client, X402_DEFAULT_FACILITATOR } from "../src/lib/x402";
+import mcp from "../worker/api/mcp";
+import { withX402Client, X402_DEFAULT_FACILITATOR } from "../worker/lib/x402";
 
 const BUYER_KEY = process.env.X402_BUYER_PRIVATE_KEY;
 const SELLER = process.env.X402_PAY_TO_ADDRESS ?? "0x1111111111111111111111111111111111111111";

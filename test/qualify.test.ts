@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { qualifyProfessional, qualificationNextSteps } from "../src/lib/qualify";
+import { qualifyProfessional, qualificationNextSteps } from "../worker/lib/qualify";
 
 describe("qualifyProfessional", () => {
   it("awards role alignment, experience, source and budget signals", () => {

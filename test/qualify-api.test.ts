@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import qualify from "../src/api/qualify";
+import qualify from "../worker/api/qualify";
 
 function post(body: unknown): Promise<Response> {
   return qualify.fetch(
