@@ -40,7 +40,6 @@ export interface PagesEnv {
   DB: D1Database;
   SESSIONS: KVNamespace;
   AI: Ai;
-  AI_GATEWAY_URL?: string;
   /** Canonical origin for hosted page URLs. Defaults to mcp.clawdyclaw.com. */
   PUBLIC_ORIGIN?: string;
 }
@@ -90,13 +89,13 @@ pages.post("/", async (c) => {
   const owner = ownerOf(c, null);
 
   let source: Record<string, unknown> = raw;
+  let generation: GenerateSpecResult | null = null;
 
-  // Brief → spec, through the AI Gateway when one is configured.
   const brief = str(raw.brief, 2000);
   if (brief && !Array.isArray(raw.blocks)) {
-    const generated = await generateSpec(c.env, brief, str(raw.kind) || "landing", raw.palette);
-    if (generated) {
-      source = { ...raw, ...generated, brief: undefined };
+    generation = await generateSpec(c.env, brief, str(raw.kind) || "landing", raw.palette);
+    if (generation) {
+      source = { ...raw, ...generation.spec, brief: undefined };
     } else {
       return c.json(
         { error: "brief supplied but no spec could be generated", hint: "send `blocks` explicitly" },
@@ -125,6 +124,9 @@ pages.post("/", async (c) => {
         react: renderPageReact(spec),
       },
       warnings,
+      generation: generation
+        ? { model: generation.model, usage: generation.usage }
+        : null,
     },
     201
   );
@@ -277,15 +279,39 @@ function publicBoardRow(r: BoardProjection, env: PagesEnv) {
  * fails — the caller surfaces a 503 and the agent can resend with explicit
  * blocks. A half-generated spec is worse than an honest failure.
  */
+/**
+ * The one production model that generates sellable pages.
+ *
+ * This is a model-selection decision, not a default: the brief→spec path is the
+ * product, and the price in §7 step 3 is derived from this model's measured
+ * per-call cost. Keeping it as one named constant means swapping the backend
+ * later is a single edit here rather than a hunt through the inference layer.
+ *
+ * Cloudflare-hosted, so it runs on the AI binding without an account token in
+ * the Worker. Published unit pricing: $0.66/M input, $1.00/M output tokens.
+ */
+export const PRODUCT_GENERATION_MODEL = "@cf/qwen/qwen2.5-coder-32b-instruct";
+
+/** Token accounting from one generation, recorded so price can be set from it. */
+export interface GenerationUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  neurons: number;
+}
+
+export interface GenerateSpecResult {
+  spec: Partial<PageSpec>;
+  usage: GenerationUsage;
+  model: string;
+}
+
 async function generateSpec(
   env: PagesEnv,
   brief: string,
   kind: string,
   palette: unknown
-): Promise<Partial<PageSpec> | null> {
-  const gateway = env.AI_GATEWAY_URL?.replace(/\/+$/, "");
-  if (!gateway) return null;
-
+): Promise<GenerateSpecResult | null> {
   const prompt = [
     "You are designing a single web page on behalf of an agent customer.",
     `Page kind: ${kind}`,
@@ -294,41 +320,63 @@ async function generateSpec(
     "blocks must be an array drawn from: hero, features, cards, stats, form, cta, consent.",
     "Use real, specific copy. Never use lorem ipsum.",
     kind === "oauth_client"
-      ? "For oauth_client use exactly one block: {type:\"consent\", clientName, clientDescription, scopes:[...]}."
+      ? 'For oauth_client use exactly one block: {type:"consent", clientName, clientDescription, scopes:[...]}.'
       : "Start with a hero block, then two supporting blocks.",
     "",
     `Brief: ${brief}`,
   ].join("\n");
 
   try {
-    const res = await fetch(`${gateway}/chat/completions`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-        temperature: 0.4,
-      }),
-    });
-    if (!res.ok) return null;
-
-    const json = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
+    // Routed through AI Gateway so every call is logged with its token usage.
+    // That log is the only honest source for the price in §7 step 3.
+    const result = (await env.AI.run(
+      PRODUCT_GENERATION_MODEL,
+      { messages: [{ role: "user", content: prompt }] },
+      { gateway: { id: "default" } }
+    )) as {
+      response?: string;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; neurons?: number };
     };
-    const content = json.choices?.[0]?.message?.content;
+
+    const content = extractJson(result.response);
     if (!content) return null;
 
     const parsed = JSON.parse(content) as Record<string, unknown>;
     return {
-      blocks: parsed.blocks as PageBlock[],
-      title: str(parsed.title, 160),
-      brand: str(parsed.brand, 80),
-      palette: resolvePalette(palette ?? null),
+      spec: {
+        blocks: parsed.blocks as PageBlock[],
+        title: str(parsed.title, 160),
+        brand: str(parsed.brand, 80),
+        palette: resolvePalette(palette ?? null),
+      },
+      usage: {
+        prompt_tokens: Number(result.usage?.prompt_tokens ?? 0),
+        completion_tokens: Number(result.usage?.completion_tokens ?? 0),
+        total_tokens: Number(result.usage?.total_tokens ?? 0),
+        neurons: Number(result.usage?.neurons ?? 0),
+      },
+      model: PRODUCT_GENERATION_MODEL,
     };
   } catch {
     return null;
   }
+}
+
+/**
+ * Pull the JSON object out of a model response.
+ *
+ * Instruct-tuned models wrap JSON in prose or fence it despite being told not
+ * to. Slicing the outermost braces tolerates that; returning null when there is
+ * no object at all means a malformed generation is dropped with a warning rather
+ * than rendered as a blank page.
+ */
+function extractJson(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start === -1 || end <= start) return null;
+  return trimmed.slice(start, end + 1);
 }
 
 export default pages;

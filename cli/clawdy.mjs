@@ -4,7 +4,7 @@
  *
  * Zero dependencies. Requires Node.js >= 18 (global fetch).
  *
- *   CLAWDYCLAW_BASE_URL  → default "https://clawdyclaw.logiclemonai.workers.dev"
+ *   CLAWDYCLAW_BASE_URL  → default "https://mcp.clawdyclaw.com"
  *   CLAWDYCLAW_TOKEN     → optional bearer token (config token, NOT a vault secret)
  *
  * Commands:
@@ -20,7 +20,7 @@
  *   auth            → print vault connect URLs for OAuth providers
  */
 
-const BASE_URL = process.env.CLAWDYCLAW_BASE_URL || "https://clawdyclaw.logiclemonai.workers.dev";
+const BASE_URL = process.env.CLAWDYCLAW_BASE_URL || "https://mcp.clawdyclaw.com";
 const TOKEN = process.env.CLAWDYCLAW_TOKEN || "";
 
 function usage() {
