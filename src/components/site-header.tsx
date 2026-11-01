@@ -58,7 +58,7 @@ const DROPDOWNS: DropGroup[] = [
         items: [
           { label: "Mobile", href: "/login", desc: "Receive approval pings and stream telemetry anywhere." },
           { label: "Automations", href: "/studio/vault", desc: "Scheduled, event-driven agent runs and webhook pipelines." },
-          { label: "CLI", href: "/studio/cli", desc: "Drive the worker from a terminal — zero dependencies." },
+          { label: "CLI", href: "/docs/cli-reference", desc: "Drive the worker from a terminal — zero dependencies." },
           { label: "Marketplace", href: "/mcp/v1/manifest.json", tag: "mcp*", desc: "Discover and mount MCP capability bundles." },
         ],
       },
@@ -67,7 +67,7 @@ const DROPDOWNS: DropGroup[] = [
 ];
 
 const SIMPLE = [
-  { label: "Resources", href: "/login?tab=docs" },
+  { label: "Docs", href: "/docs" },
   { label: "Sandbox", href: "/studio/sandbox" },
   { label: "Studio", href: "/studio" },
   { label: "Pricing", href: "/login?tab=pricing" },

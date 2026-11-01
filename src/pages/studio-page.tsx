@@ -7,7 +7,6 @@ import { ToolRegistry } from "@/pages/studio/tool-registry";
 import { ModelsPage } from "@/pages/studio/models-page";
 import { SandboxPage } from "@/pages/studio/sandbox-page";
 import { VaultPage } from "@/pages/studio/vault-page";
-import { CliPage } from "@/pages/studio/cli-page";
 import { ToolsBoard } from "@/pages/studio/tools-board";
 
 type Section =
@@ -18,8 +17,7 @@ type Section =
   | "tools"
   | "models"
   | "sandbox"
-  | "vault"
-  | "cli";
+  | "vault";
 
 const NAV: Array<{ path: Section; label: string; icon: string; badge?: string }> = [
   { path: "command", label: "Command Center", icon: "◈" },
@@ -30,7 +28,6 @@ const NAV: Array<{ path: Section; label: string; icon: string; badge?: string }>
   { path: "models", label: "Models", icon: "✦" },
   { path: "sandbox", label: "Sandbox", icon: "◪" },
   { path: "vault", label: "API Vault", icon: "🔑" },
-  { path: "cli", label: "CLI", icon: "›_" },
 ];
 
 const REAL_PATH: Record<Section, string> = {
@@ -42,7 +39,6 @@ const REAL_PATH: Record<Section, string> = {
   models: "/studio/models",
   sandbox: "/studio/sandbox",
   vault: "/studio/vault",
-  cli: "/studio/cli",
 };
 
 function fromSearchPath(pathname: string): Section {
@@ -53,7 +49,6 @@ function fromSearchPath(pathname: string): Section {
   if (pathname.startsWith("/studio/models")) return "models";
   if (pathname.startsWith("/studio/sandbox")) return "sandbox";
   if (pathname.startsWith("/studio/vault")) return "vault";
-  if (pathname.startsWith("/studio/cli")) return "cli";
   return "command";
 }
 
@@ -100,7 +95,6 @@ export default function StudioPage() {
       {section === "models" && <ModelsPage mode={mode} onMode={setMode} />}
       {section === "sandbox" && <SandboxPage mode={mode} onMode={setMode} />}
       {section === "vault" && <VaultPage mode={mode} onMode={setMode} onNavigate={goto} />}
-      {section === "cli" && <CliPage mode={mode} onMode={setMode} />}
       {section === "command" && <CommandCenter mode={mode} onMode={setMode} />}
     </StudioShell>
   );
